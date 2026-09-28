@@ -12,6 +12,7 @@ import { AsciiLibrary } from './AsciiLibrary.jsx';
 import { CanvasContextMenu, DockLabels, Tooltips } from './EditorActions.jsx';
 import { ArtworkOptimizer } from './ArtworkOptimizer.jsx';
 import { ZoomFields } from './ZoomFields.jsx';
+import EditorCatalog from './catalog/EditorCatalog.jsx';
 
 const attributes = [
   ['any', 'Все герои'],
@@ -108,7 +109,7 @@ function ProjectPanel({ editor, state }) {
 
 function GroupControl({ editor, state }) {
   const group = state.group;
-  if (!group || state.preview || state.tool !== 'select') return null;
+  if (!group || state.preview || state.tool !== 'select' || state.reorderingHeroes) return null;
   const first = C.heroLayout(group),
     empty = !first;
   const last = group.heroIds.length - 1;
@@ -345,6 +346,7 @@ function HeroPicker({ editor, group }) {
             <div className="picker-portrait">
               <img
                 src={hero.thumbnail || `assets/heroes/${hero.id}.png`}
+                style={{ objectPosition: hero.thumbnailPosition }}
                 alt=""
                 loading="lazy"
                 width="256"
@@ -382,9 +384,10 @@ function HeroPicker({ editor, group }) {
             {group.heroIds
               .filter((id) => knownHeroes.has(id))
               .slice(-5)
-              .map((id) => (
-                <img key={id} src={D.heroes.find((h) => h.id === id)?.thumbnail || `assets/heroes/${id}.png`} alt="" />
-              ))}
+              .map((id) => {
+                const hero = D.heroes.find((h) => h.id === id);
+                return <img key={id} src={hero?.thumbnail || `assets/heroes/${id}.png`} style={{ objectPosition: hero?.thumbnailPosition }} alt="" />;
+              })}
           </div>
           <span role="status" aria-live="polite">
             В группе: <strong>{group.heroIds.length}</strong>
@@ -401,6 +404,9 @@ function HeroPicker({ editor, group }) {
 export function StudioControls({ editor }) {
   const state = useSyncExternalStore(editor.subscribe, editor.getSnapshot);
   const [panel, setPanel] = useState(null);
+  const [pinned, setPinned] = useState(() => {
+    try { return localStorage.getItem('gridstudio.library-pinned') === '1'; } catch { return false; }
+  });
   const [optimization, setOptimization] = useState(null);
   const panelTrigger = useRef(null);
   const panelMode = useRef(null);
@@ -411,7 +417,7 @@ export function StudioControls({ editor }) {
   useEffect(() => {
     const openModeSettings = (event) => {
       if (event.target.closest('#dockAddGroup')) {
-        setPanel(null);
+        if (!pinned) setPanel(null);
         return;
       }
       const trigger = event.target.closest('[data-mode]');
@@ -425,7 +431,13 @@ export function StudioControls({ editor }) {
     };
     document.addEventListener('click', openModeSettings);
     return () => document.removeEventListener('click', openModeSettings);
-  }, [editor]);
+  }, [editor, pinned]);
+  useLayoutEffect(() => {
+    document.body.classList.toggle('library-pinned', pinned);
+    try { localStorage.setItem('gridstudio.library-pinned', pinned ? '1' : '0'); } catch {}
+    if (window.matchMedia('(min-width: 901px)').matches) editor.fitCanvas();
+    return () => document.body.classList.remove('library-pinned');
+  }, [editor, pinned, panel]);
   useEffect(() => {
     if (!state.focused && window.matchMedia('(max-width: 900px)').matches) {
       setPanel(null);
@@ -507,8 +519,12 @@ export function StudioControls({ editor }) {
         <LayersPanel editor={editor} layers={state.layers} />
       </StudioPortal>
       <StudioPortal targetId="libraryDismiss">
-        <button className="panel-dismiss" onClick={closeLibrary}>
-          Закрыть ×
+        <button className="panel-pin" aria-pressed={pinned} aria-label={pinned ? 'Открепить панель' : 'Закрепить панель'}
+          data-tooltip={pinned ? 'Открепить панель' : 'Закрепить панель'} onClick={() => setPinned(value => !value)}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 3 6 0-1 6 4 4v2H6v-2l4-4-1-6ZM12 15v6"/></svg>
+        </button>
+        <button className="panel-dismiss" onClick={closeLibrary} aria-label="Закрыть панель">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg>
         </button>
       </StudioPortal>
       <StudioPortal targetId="inspectorDismiss">
@@ -564,15 +580,6 @@ export function StudioControls({ editor }) {
       </StudioPortal>
       <StudioPortal targetId="symbolCounter">
         <>
-          <span className="symbol-count-icon" aria-hidden="true">
-            Aa
-          </span>
-          <span title="Символы рисунка и текста во всех слоях. Пробелы, переносы строк и названия групп не учитываются.">
-            Символов{' '}
-            <strong key={state.symbols} className="count-update">
-              {state.symbols.toLocaleString('ru-RU')}
-            </strong>
-          </span>
           <span className="category-counter">
             Категорий <strong>{state.categories.toLocaleString('ru-RU')}</strong>
           </span>
@@ -580,6 +587,7 @@ export function StudioControls({ editor }) {
             onClick={() => setOptimization(editor.getDocument())}>Оптимизация</button>
         </>
       </StudioPortal>
+      <EditorCatalog editor={editor}/>
       {state.picker && <HeroPicker key={state.picker.id} editor={editor} group={state.picker} />}
       {optimization && <ArtworkOptimizer editor={editor} source={optimization} onClose={() => setOptimization(null)} />}
       {state.drawingOpen && (

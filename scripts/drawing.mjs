@@ -21,6 +21,29 @@ export const DRAWING_TOOLS = [
   ['eraser', '⌫', 'Ластик']
 ];
 export const GRADIENT_CHARS = '.·:;+*#%@';
+const POSITIONABLE_SHAPES = new Set(['line', 'hline', 'vline', 'rect', 'ellipse', 'triangle',
+  'diamond', 'star', 'spiral', 'wave', 'frame', 'fill', 'rectfill']);
+
+export function setDrawingShift(stroke, shift) {
+  stroke.shift = shift;
+  stroke.repositioning = shift && POSITIONABLE_SHAPES.has(stroke.tool);
+}
+// A draft remains one gesture/undo step. During translation both endpoints
+// move together; releasing Shift resumes sizing from the translated origin.
+export function advanceDrawingStroke(stroke, point, shift) {
+  const previous = stroke.pointer || stroke.path.at(-1);
+  setDrawingShift(stroke, shift);
+  if (stroke.repositioning) {
+    const minX = Math.min(...stroke.path.map(p => p.x));
+    const minY = Math.min(...stroke.path.map(p => p.y));
+    const dx = Math.max(-minX, point.x - previous.x);
+    const dy = Math.max(-minY, point.y - previous.y);
+    stroke.path = stroke.path.map(p => ({ x: p.x + dx, y: p.y + dy }));
+  } else if (POSITIONABLE_SHAPES.has(stroke.tool)) {
+    stroke.path = [stroke.path[0], { ...point }];
+  } else stroke.path.push({ ...point });
+  stroke.pointer = { ...point };
+}
 export const BRUSH_DEFAULTS = {
   chars: '★',
   order: 'sequence',

@@ -8,6 +8,15 @@ export function canvasPoint(event, rect, size) {
 export function snapPoint(point, enabled, step = 8) {
   return enabled ? { x: Math.round(point.x / step) * step, y: Math.round(point.y / step) * step } : point;
 }
+// Selection owns its entire visible frame, including gaps between glyphs.
+// Use the frame's coordinates, not its axis-aligned bounding box after rotation.
+export function hitSelectionFrame(frame, point) {
+  if (!frame) return false;
+  const local = C.rotatePoint(point, C.frameCenter(frame), -(frame.rotation || 0));
+  const epsilon = 1e-7;
+  return local.x >= frame.x - epsilon && local.x <= frame.x + frame.w + epsilon &&
+    local.y >= frame.y - epsilon && local.y <= frame.y + frame.h + epsilon;
+}
 export function itemInkRects(item, measure) {
   if (item.type === 'heroes') return [{ x: item.x, y: item.y, w: item.w, h: C.visualHeight(item) }];
   return C.textGlyphs(item).map((glyph) => {

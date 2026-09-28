@@ -14,6 +14,15 @@ export const DOTA = Object.freeze({
     'StudioRadiance, StudioDotaKorean, "Malgun Gothic", "Noto Sans CJK KR", Arial, sans-serif'
 });
 
+// Crop the display viewport, keeping the original image intact. A supplied
+// portrait viewport can exclude screenshot chrome before fitting a hero card.
+export function portraitSourceRect(image, width, height, crop) {
+  const [x, y, sourceWidth, sourceHeight] = crop || [0, 0, image.naturalWidth || image.width, image.naturalHeight || image.height];
+  const scale = Math.max(width / sourceWidth, height / sourceHeight);
+  const w = width / scale, h = height / scale;
+  return [x + (sourceWidth - w) / 2, y + (sourceHeight - h) / 2, w, h];
+}
+
 export function drawCategoryLabel(ctx, text, x, y, color = DOTA.labelColor) {
   ctx.save();
   ctx.font = `${DOTA.fontWeight} ${DOTA.fontSize}px ${DOTA.fontFamily}`;

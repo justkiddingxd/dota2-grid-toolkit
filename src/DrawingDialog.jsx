@@ -2,12 +2,14 @@ import { NumberInput } from './NumberInput.jsx';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import C from '../scripts/core.mjs';
 import D from '../scripts/data.mjs';
-import { canvasPoint, snapPoint, hitItem, intersectsInk, selectionOnClick, centerBrushPoints } from '../scripts/canvas-input.mjs';
+import { canvasPoint, snapPoint, hitItem, hitSelectionFrame, intersectsInk, selectionOnClick, centerBrushPoints } from '../scripts/canvas-input.mjs';
 import {
   DRAWING_TOOLS,
   BRUSH_DEFAULTS,
   GRADIENT_CHARS,
   drawingPoints,
+  setDrawingShift,
+  advanceDrawingStroke,
   lassoContains
 } from '../scripts/drawing.mjs';
 import {
@@ -179,13 +181,16 @@ export function DrawingDialog({ editor, reference, canvasSize, recentSymbols }) 
     return canvasPoint(e, canvas.current.getBoundingClientRect(), board);
   }
   function placedPoints(s, shift) {
-    return centerBrushPoints(drawingPoints(s.tool, s.path, s.brush, s.seed, shift,
+    return centerBrushPoints(drawingPoints(s.tool, s.path, s.brush, s.seed, shift && !s.repositioning,
       D.frames[s.frameStyle], board), ink);
   }
   function previewStroke(shift) {
     const s = stroke.current;
-    if (s?.type === 'draw')
+    if (s?.type === 'draw') {
+      setDrawingShift(s, shift);
+      canvas.current.style.cursor = s.repositioning ? 'move' : 'crosshair';
       setPreview(placedPoints(s, shift));
+    }
   }
 
   function down(e) {
@@ -220,6 +225,12 @@ export function DrawingDialog({ editor, reference, canvasSize, recentSymbols }) 
       return;
     }
     if (tool === 'select') {
+      const frame = C.bounds(before.entities.filter(item => selectionRef.current.includes(item.id)), true);
+      if (!e.shiftKey && hitSelectionFrame(frame, p)) {
+        stroke.current = { type: 'move', before, start: p, ids: [...selectionRef.current] };
+        canvas.current.style.cursor = 'move';
+        return;
+      }
       const hit = hitItem(before, p, ink, 3 * board.w / size.w);
       const ids = hit ? [...selectionOnClick(new Set(selectionRef.current), hit.id, e.shiftKey)] : e.shiftKey ? selectionRef.current : [];
       setSelected(ids);
@@ -253,6 +264,9 @@ export function DrawingDialog({ editor, reference, canvasSize, recentSymbols }) 
       if (tool === 'reference') {
         const handle = referenceHit(doc.reference, p, (9 * board.w) / size.w);
         canvas.current.style.cursor = referenceCursor(handle);
+      } else if (tool === 'select') {
+        const frame = C.bounds(latest.current.entities.filter(item => selectionRef.current.includes(item.id)), true);
+        canvas.current.style.cursor = hitSelectionFrame(frame, p) ? 'move' : '';
       }
       return;
     }
@@ -281,10 +295,12 @@ export function DrawingDialog({ editor, reference, canvasSize, recentSymbols }) 
       const next = C.clone(latest.current);
       eraseSymbols(next, p);
       update(next);
-    } else {
-      s.path.push(s.type === 'draw' ? snapPoint(p, snap) : p);
-      if (s.type === 'lasso') setPath([...s.path]);
-      else previewStroke(e.shiftKey);
+    } else if (s.type === 'draw') {
+      advanceDrawingStroke(s, snapPoint(p, snap), e.shiftKey);
+      previewStroke(e.shiftKey);
+    } else if (s.type === 'lasso') {
+      s.path.push(p);
+      setPath([...s.path]);
     }
   }
   function finish(e, cancel = false) {
@@ -307,6 +323,7 @@ export function DrawingDialog({ editor, reference, canvasSize, recentSymbols }) 
         w:Math.abs(s.current.x-s.start.x), h:Math.abs(s.current.y-s.start.y) };
       setSelected([...new Set([...s.previous, ...latest.current.entities.filter((item) => intersectsInk(item,b,ink)).map((item) => item.id)])]);
     } else if (s.type === 'draw') {
+      if (e) advanceDrawingStroke(s, snapPoint(point(e), snap), e.shiftKey);
       const next = C.clone(s.before);
       const points = placedPoints(s, s.shift ?? e?.shiftKey ?? false);
       for (const p of points)
@@ -330,8 +347,10 @@ export function DrawingDialog({ editor, reference, canvasSize, recentSymbols }) 
     stroke.current = null;
     setPreview([]);
     setPath([]);
-    if (e && canvas.current.hasPointerCapture(e.pointerId))
-      canvas.current.releasePointerCapture(e.pointerId);
+    canvas.current.style.cursor = tool === 'select' ? 'default' : tool === 'reference' ? 'move' : 'crosshair';
+    if (canvas.current.hasPointerCapture(activePointer.current))
+      canvas.current.releasePointerCapture(activePointer.current);
+    activePointer.current = null;
   }
   function keyboard(e) {
     if (e.target.closest('input,select,textarea')) return;
@@ -491,7 +510,7 @@ export function DrawingDialog({ editor, reference, canvasSize, recentSymbols }) 
             </div>
           )}
           <p className="drawing-shortcuts">
-            Shift — прямая по оси · I — взять символ · L — лассо · V — перемещение · Ctrl Z — отмена
+            Shift — сдвинуть фигуру, у кисти — прямая по оси · V — перемещение · Ctrl Z — отмена
           </p>
         </div>
         <aside className="drawing-settings" aria-label="Настройки рисунка">

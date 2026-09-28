@@ -1,8 +1,16 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const C = require('../scripts/core.mjs').default;
-const { DOTA } = require('../scripts/dota-rendering.mjs');
+const { DOTA, portraitSourceRect } = require('../scripts/dota-rendering.mjs');
 const near = (a, b, tolerance = 1e-6) => assert.ok(Math.abs(a - b) <= tolerance, `${a} != ${b}`);
+
+test('target portrait excludes the screenshot nameplate without stretching or changing other heroes', () => {
+  const hero = require('../scripts/data.mjs').default.heroes.find(hero => hero.id === 127);
+  const [x, y, w, h] = portraitSourceRect({ width: 292, height: 400 }, 58, 100, hero.portraitCrop);
+  assert.ok(x >= 2 && y >= 6 && x + w <= 288 && y + h <= 350);
+  near(w / h, 58 / 100);
+  portraitSourceRect({ width: 256, height: 144 }, 60, 100).forEach((value, i) => near(value, [84.8, 0, 86.4, 144][i]));
+});
 
 test('custom grid labels use the normal Dota category style, not NewPlayerPool', () => {
   // Verified against HeroCategoryName in the supplied hero_grid_new.vcss_c.

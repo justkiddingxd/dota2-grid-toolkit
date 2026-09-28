@@ -16,7 +16,7 @@ try {
     return result.stdout.trim();
   };
   const staged = run('diff', '--cached', '--name-only').split('\n').filter(Boolean);
-  const forbidden = /(^|\/)(\.env(?:\.|$)|\.release-state\/|node_modules\/|dist\/|release-artifacts\/|test-results\/|exports\/|deploy\/)|^docs\/deployment\.md$/;
+  const forbidden = /(^|\/)(\.env(?:\.|$)|\.release-state\/|\.catalog-data\/|node_modules\/|dist\/|release-artifacts\/|test-results\/|exports\/|deploy\/)|^docs\/deployment\.md$|\.sqlite(?:-shm|-wal)?$/;
   const unsafe = staged.filter((path) => path !== '.env.example' && (forbidden.test(path) || /\.(?:key|pem)$/i.test(path)));
   if (unsafe.length) throw new Error(`Проверь приватные файлы в индексе: ${unsafe.join(', ')}`);
   if (staged.includes('project.md') && !run('show', ':project.md').startsWith('<!-- GridStudio public project context -->'))

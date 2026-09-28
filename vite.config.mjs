@@ -7,9 +7,10 @@ export default defineConfig({
   define: { __APP_VERSION__: JSON.stringify(JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version) },
   base: './',
   build: {
-    rollupOptions: { input: { home: 'index.html', studio: 'editor.html', design: 'design.html', landing: 'landing.html' } }
+    rollupOptions: { input: { home: 'index.html', studio: 'editor.html', catalog: 'catalog.html', design: 'design.html', landing: 'landing.html' } }
   },
   server: {
+    proxy: { '/api/catalog': { target: `http://127.0.0.1:${process.env.CATALOG_PORT || 4174}` } },
     // Windows editors/formatters can emit a change while a file is truncated.
     // Wait for the completed write before caching a transformed module.
     watch: { awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 50 } }

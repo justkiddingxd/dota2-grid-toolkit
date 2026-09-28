@@ -7,7 +7,7 @@ const uuid = () => globalThis.crypto.randomUUID();
 const info = (raw) => { try { return JSON.parse(raw)?.[META] || {}; } catch { return {}; } };
 const conflict = () => Object.assign(new Error('Проект изменён в другой вкладке.'), { code: 'CONFLICT' });
 
-export function openProjectDatabase(indexedDB = globalThis.indexedDB) {
+export function openProjectDatabase(indexedDB = globalThis.indexedDB, scope = '') {
   return new Promise((resolve, reject) => {
     if (!indexedDB) return reject(new Error('IndexedDB недоступна.'));
     const request = indexedDB.open('gridstudio-projects', 1);
@@ -29,18 +29,24 @@ export function openProjectDatabase(indexedDB = globalThis.indexedDB) {
         run(store, (value) => { result = value; }, (reason) => { error = reason; tx.abort(); });
       });
       resolve({
-        list: () => transaction('readonly', (store, done) => { store.getAll().onsuccess = (e) => done(e.target.result); }),
-        archive: (record) => transaction('readwrite', (store) => { store.put(record); }),
+        list: () => transaction('readonly', (store, done) => {
+          store.getAllKeys().onsuccess = event => {
+            const keys = event.target.result.filter(key => scope ? key.startsWith(scope) : !key.startsWith('workspace:') && !key.startsWith('registry:'));
+            const rows = []; done(rows);
+            for (const key of keys) store.get(key).onsuccess = e => { if (e.target.result) rows.push({ ...e.target.result, key: scope ? key.slice(scope.length) : key }); };
+          };
+        }),
+        archive: (record) => transaction('readwrite', (store) => { store.put({ ...record, key: scope + record.key }); }),
         commit: (record, expected, reason) => transaction('readwrite', (store, done, abort) => {
-          store.get('current').onsuccess = (event) => {
+          store.get(scope + 'current').onsuccess = (event) => {
             const previous = event.target.result;
             if ((previous?.raw || null) !== expected) return abort(conflict());
             if (previous && previous.raw !== record.raw) {
               // Ten rolling minute snapshots; version/migration snapshots are separate and never pruned here.
               const minute = Math.floor(record.savedAt / 60000);
-              store.put({ ...previous, key: `rolling:${minute % 10}`, reason: reason || 'Автокопия' });
+              store.put({ ...previous, key: `${scope}rolling:${minute % 10}`, reason: reason || 'Автокопия' });
             }
-            store.put({ ...record, key: 'current', reason: 'Последнее сохранение' });
+            store.put({ ...record, key: scope + 'current', reason: 'Последнее сохранение' });
             done(true);
           };
         }),
@@ -211,11 +217,20 @@ export class ProjectStorage {
   }
 }
 
-export async function createProjectStorage(importProject, version) {
+export function scopedLocalStorage(storage, workspace) {
+  if (!workspace || workspace === 'legacy' || !storage) return storage;
+  const prefix = `${PROJECT_KEY}.workspace.${workspace}`;
+  const actual = key => key.startsWith(PROJECT_KEY) ? prefix + key.slice(PROJECT_KEY.length) : key;
+  const keys = () => Array.from({ length: storage.length }, (_, i) => storage.key(i)).filter(k => k === prefix || k.startsWith(prefix + '.'));
+  return { get length() { return keys().length; }, key: i => { const k = keys()[i]; return k ? PROJECT_KEY + k.slice(prefix.length) : null; },
+    getItem: key => storage.getItem(actual(key)), setItem: (key, value) => storage.setItem(actual(key), value), removeItem: key => storage.removeItem(actual(key)) };
+}
+export async function createProjectStorage(importProject, version, workspace = 'legacy') {
+  if (workspace !== 'legacy' && !/^[a-f0-9-]{36}$/.test(workspace)) throw new Error('Некорректное рабочее пространство.');
   let storage = null, database = null;
-  try { storage = globalThis.localStorage; } catch { /* Browser policy. */ }
-  try { database = await openProjectDatabase(); } catch { /* localStorage fallback. */ }
+  try { storage = scopedLocalStorage(globalThis.localStorage, workspace); } catch { /* Browser policy. */ }
+  try { database = await openProjectDatabase(globalThis.indexedDB, workspace === 'legacy' ? '' : `workspace:${workspace}:`); } catch { /* localStorage fallback. */ }
   const lock = globalThis.navigator?.locks
-    ? (fn) => navigator.locks.request('gridstudio-project-save', fn) : (fn) => fn();
+    ? (fn) => navigator.locks.request(workspace === 'legacy' ? 'gridstudio-project-save' : `gridstudio-project-save:${workspace}`, fn) : (fn) => fn();
   return new ProjectStorage({ storage, database, importProject, version, lock });
 }

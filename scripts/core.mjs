@@ -293,6 +293,16 @@ function configurations(doc) {
     return { index, name: state ? state.name : config.config_name };
   });
 }
+function renameConfig(doc, index, value) {
+  if (!Number.isInteger(index) || !doc.source.configs[index]) throw new Error('Сетка не найдена.');
+  const name = String(value).trim();
+  if (!name || name.length > 200) throw new Error('Название должно содержать от 1 до 200 символов.');
+  const next = clone(doc);
+  next.source.configs[index].config_name = name;
+  if (index === next.configIndex) next.name = name;
+  if (next.configDrafts?.[index]) next.configDrafts[index].name = name;
+  return next;
+}
 function addConfig(doc, name = 'Новая сетка', kind = 'blank') {
   if (doc.source.configs.length >= MAX_CONFIGS)
     throw new Error('В одном файле допускается до 100 сеток.');
@@ -959,6 +969,7 @@ export default {
   importProject,
   switchConfig,
   configurations,
+  renameConfig,
   addConfig,
   appendConfigs,
   bounds,

@@ -20,14 +20,14 @@ dist/
 test-results/
 *.log
 /for_github/
-
-# Local-only credentials and exported user projects
 .env
 .env.*
 !.env.example
-*.pem
-*.key
-exports/
-
 /.release-state/
 /release-artifacts/
+*.pem
+*.key
+/.catalog-data/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal

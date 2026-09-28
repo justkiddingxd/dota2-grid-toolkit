@@ -10,5 +10,9 @@ export function editorRoute(request, response, next) {
     return;
   }
   if (pathname === '/editor') request.url = `/editor.html${query}`;
+  if (pathname === '/catalog/') {
+    response.writeHead(308, { Location: `/catalog${query}` }); response.end(); return;
+  }
+  if (pathname === '/catalog') request.url = `/catalog.html${query}`;
   next();
 }

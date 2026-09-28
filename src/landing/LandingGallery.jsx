@@ -3,6 +3,7 @@ import editorImage from '../../assets/design/editor-landing-reference.png';
 import linsissya from '../../assets/design/linsissya.png';
 import dissonance from '../../assets/design/dissonance.png';
 import StageArtwork from './StageArtwork.jsx';
+import { CATALOG_PATH } from '../catalog/api.js';
 
 const VARIANTS = [
   { id: 'edge', name: 'За край', heading: <>Твоя сетка<br />героев.</> },
@@ -68,7 +69,6 @@ function EditorArtwork({ variant }) {
 }
 
 function Landing({ variant }) {
-  const [catalog, setCatalog] = useState(false);
   return <div className={`landing-page landing-${variant.id}`}>
     <header className="landing-nav">
       <Brand />
@@ -78,9 +78,8 @@ function Landing({ variant }) {
         <h1>{variant.heading}</h1>
         <p className="landing-description">{DESCRIPTION}</p>
         <div className="landing-actions">
-          <a className="landing-primary" href={`./${import.meta.env.VITE_EDITOR_ENTRY || 'editor'}`}><Icon name="grid" />Создать свою сетку</a>
-          <button className="landing-catalog" aria-expanded={catalog} onClick={() => setCatalog(!catalog)}><Icon name="catalog" />Каталог сеток</button>
-          {catalog && <p className="catalog-status" role="status">Каталог ещё готовится. Редактор уже доступен.</p>}
+          <a className="landing-primary" href={`./${import.meta.env.VITE_EDITOR_ENTRY || 'editor'}?new=1`}><Icon name="grid" />Создать свою сетку</a>
+          <a className="landing-catalog" href={CATALOG_PATH}><Icon name="catalog" />Каталог сеток</a>
         </div>
         <Authors />
       </div>

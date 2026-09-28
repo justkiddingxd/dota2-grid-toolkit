@@ -2,10 +2,11 @@ import { memo } from 'react';
 import { NumberInput } from './NumberInput.jsx';
 import { ImageImportDialog } from './ImageImportDialog.jsx';
 // Stable shell: the editor exclusively owns the canvas and empty imperative hosts.
-export const StudioLayout = memo(function StudioLayout() {
+export const StudioLayout = memo(function StudioLayout({ onBack }) {
   return (
     <>
       <header className="app-header">
+        <button className="workspace-back" onClick={onBack} aria-label="Вернуться к файлам"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M19 12H5m6-6-6 6 6 6"/></svg><span>Файлы</span></button>
         <a className="brand" href="./" aria-label="Grid Studio, главная">
           <span className="brand-mark" aria-hidden="true">
             <svg viewBox="0 0 32 32">
@@ -17,32 +18,18 @@ export const StudioLayout = memo(function StudioLayout() {
             <small>DOTA 2 TOOLKIT</small>
           </span>
         </a>
-        <div className="header-divider"></div>
-        <div className="project-heading">
-          <button id="renameProject" className="project-name" title="Переименовать сетку">
-            <span id="projectName">Сетка по ролям</span>
-            <span data-icon="chevron" className="small-icon"></span>
-          </button>
-        </div>
-        <button id="saveState" className="save-state" aria-label="Сохранение и копии проекта" data-tooltip="Открыть копии проекта">
-          <span className="status-dot"></span>Сохранено на устройстве
+        <button id="saveState" className="save-state" data-state="saved" aria-label="Изменения сохранены. Открыть версии проекта" aria-haspopup="dialog" data-tooltip="Открыть версии проекта">
+          <span className="save-state-dot" aria-hidden="true" />
+          <span id="saveStateLabel">Изменения сохранены</span>
         </button>
         <div className="header-actions">
-          <button
-            id="newProject"
-            className="button ghost"
-            title="Новая сетка в этом файле"
-            aria-label="Новая сетка"
-          >
-            <span data-icon="plus"></span>
-          </button>
-          <button id="importButton" className="button secondary" aria-label="Загрузить JSON">
+          <button id="importButton" className="button secondary" aria-label="Импортировать">
             <span data-icon="import"></span>
-            <span>Загрузить JSON</span>
+            <span>Импортировать</span>
           </button>
           <button id="exportButton" className="button primary">
             <span data-icon="export"></span>
-            <span>Скачать JSON</span>
+            <span>Экспортировать</span>
           </button>
         </div>
       </header>
@@ -204,7 +191,7 @@ export const StudioLayout = memo(function StudioLayout() {
                 />
               </label>
             </div>
-            <p className="hint">Shift — ровная линия по ближайшей оси.</p>
+            <p className="hint">Shift во время рисования — сдвинуть фигуру. У кисти — ровная линия по ближайшей оси.</p>
             <div className="field-pair">
               <label className="check-row">
                 <input id="mirrorH" type="checkbox" />
@@ -393,7 +380,7 @@ export const StudioLayout = memo(function StudioLayout() {
             <div className="canvas-caption">
               <span>
                 <i className="canvas-dot"></i>
-                <span id="canvasName">Сетка по ролям</span>
+                <span id="canvasName">Новая сетка</span>
               </span>
               <span id="canvasDimensions" />
             </div>
@@ -507,7 +494,7 @@ export const StudioLayout = memo(function StudioLayout() {
       <dialog id="modal" className="modal">
         <div id="modalContent"></div>
       </dialog>
-      <input id="fileInput" type="file" multiple hidden />
+      <input id="fileInput" type="file" accept=".json,application/json" multiple hidden />
       <input
         id="imageInput"
         type="file"

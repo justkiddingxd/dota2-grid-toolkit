@@ -1,16 +1,20 @@
 /* Grid Studio: one canvas, one document, one history for all three workflows. */
 import C from './core.mjs';
 import { APP_VERSION } from './version.mjs';
+import { saveIndicator } from './save-status.mjs';
+import { steamFolderMarkup, mountSteamFolder } from './steam-folder.mjs';
+import { selectedCatalogGrid, appendCatalogGrid } from './catalog-document.mjs';
 import D from './data.mjs';
 import { readGridFiles } from './grid-import.mjs';
 import { clampZoom, wheelZoom } from './zoom.mjs';
 import { simplifyArtwork, simplifiableItems } from './artwork-optimization.mjs';
 import { planOptimization, optimizeCategories } from './category-optimization.mjs';
-import { canvasPoint, snapPoint, hitItem, intersectsInk, selectionOnClick, centerBrushPoints } from './canvas-input.mjs';
+import { canvasPoint, snapPoint, hitItem, hitSelectionFrame, intersectsInk, selectionOnClick, centerBrushPoints } from './canvas-input.mjs';
+import { moveHero, heroAt, heroDropIndex, createHeroMotion, targetHeroMotion, advanceHeroMotion } from './hero-order.mjs';
 import { numberButtons, stepNumber } from './form-controls.mjs';
 import { gamePreviewLayout } from './game-preview.mjs';
 import { layoutAsciiArt, placeAsciiArt } from './ascii-library.mjs';
-import { DRAWING_TOOLS, GRADIENT_CHARS, drawingPoints, lassoContains } from './drawing.mjs';
+import { DRAWING_TOOLS, GRADIENT_CHARS, drawingPoints, lassoContains, setDrawingShift, advanceDrawingStroke } from './drawing.mjs';
 import {
   searchSymbols,
   categorySelection,
@@ -35,7 +39,7 @@ import {
   IMAGE_CHECKS,
   IMAGE_TEXT_FIELDS
 } from './image-settings.mjs';
-import { DOTA, drawCategoryLabel, measureCategoryText, measureCategoryInk, measureCategoryWidth } from './dota-rendering.mjs';
+import { DOTA, drawCategoryLabel, measureCategoryText, measureCategoryInk, measureCategoryWidth, portraitSourceRect } from './dota-rendering.mjs';
 const ROTATE_CURSOR = `url("data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path d="M8 22a10 10 0 1 1 16-9M19 7l5 6 5-5" fill="none" stroke="#10151a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 22a10 10 0 1 1 16-9M19 7l5 6 5-5" fill="none" stroke="#efeaf5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>')}") 16 16, grab`;
 export function createStudio(projectStorage, initial) {
   const $ = (id) => document.getElementById(id);
@@ -111,7 +115,7 @@ export function createStudio(projectStorage, initial) {
       (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
     );
   const heroById = new Map(D.heroes.map((h) => [h.id, h]));
-  let doc = initial.doc || C.demoDocument(initial.hasData ? 'blank' : 'roles');
+  let doc = initial.doc || C.createDocument();
   const history = new C.History(35);
   const workspace = () => C.canvasSize(doc);
   let canvasGeometryKey = '',
@@ -172,12 +176,16 @@ export function createStudio(projectStorage, initial) {
     saveDirty = false,
     saveInFlight = false,
     saveWarning = '',
+    cloudSaveStatus = '',
+    localSaveStatus = { text: 'Изменения сохранены', warning: false },
     toastTimer,
     gesture = null,
     spaceDown = false,
     lastPoint = { x: 60, y: 60 },
     drawFrame = null;
   let referenceEditing = false;
+  let heroMotion = null;
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   let frameStyle = { ...D.frames.simple },
     framePending = false;
   const collapsed = new Set(['background']);
@@ -223,11 +231,24 @@ export function createStudio(projectStorage, initial) {
       error ? 6500 : 3800
     );
   }
+  function renderSaveIndicator() {
+    if (disposed) return;
+    const view = saveIndicator(localSaveStatus, cloudSaveStatus), button = $('saveState');
+    $('saveStateLabel').textContent = view.text;
+    button.classList.toggle('save-warning', view.warning);
+    button.dataset.state = view.warning ? 'warning' : view.text === 'Изменения сохранены' ? 'saved' : 'saving';
+    button.setAttribute('aria-label', `${view.text}. Открыть версии проекта`);
+    button.dataset.tooltip = view.detail ? `${view.detail} Открыть версии проекта` : 'Открыть версии проекта';
+  }
+  function setLocalSaveStatus(text, warning = false, detail = '') {
+    localSaveStatus = { text, warning, detail };
+    renderSaveIndicator();
+  }
   function save() {
     clearTimeout(saveTimer);
     saveDirty = true;
     saveRevision++;
-    $('saveState').innerHTML = '<span class="status-dot"></span>Сохраняем…';
+    if (!localSaveStatus.warning) setLocalSaveStatus('Сохраняем…');
     saveTimer = setTimeout(flushSave, 250);
     saveDeadline ||= setTimeout(flushSave, 1000);
   }
@@ -238,7 +259,7 @@ export function createStudio(projectStorage, initial) {
     if (!saveDirty) return;
     const revision = saveRevision;
     saveInFlight = true;
-    projectStorage.save(doc).then((result) => {
+    return projectStorage.save(doc).then((result) => {
       if (disposed || revision !== saveRevision) return;
       saveInFlight = false;
       saveDirty = !result.saved;
@@ -247,15 +268,13 @@ export function createStudio(projectStorage, initial) {
         : result.blocked ? 'Основное сохранение защищено. Текущая работа доступна в копиях проекта.'
         : result.recoveryOnly ? 'Работа сохранена в резервную копию. Скачай проект для надёжного хранения.'
         : !result.saved ? 'Не удалось сохранить работу в браузере. Скачай проект.' : '';
-      $('saveState').textContent = warning ? result.saved ? 'Сохранено в копии · открыть' : 'Не сохранено · скачать' : 'Сохранено на устройстве';
-      $('saveState').classList.toggle('save-warning', Boolean(warning));
+      setLocalSaveStatus(warning ? result.saved ? 'Сохранено в копии · открыть' : 'Не сохранено · скачать' : 'Изменения сохранены', Boolean(warning), warning);
       if (warning && warning !== saveWarning) toast(warning, true);
       saveWarning = warning;
     }).catch(() => {
       if (!disposed && revision === saveRevision) {
         saveInFlight = false;
-        $('saveState').textContent = 'Не сохранено · скачать';
-        $('saveState').classList.add('save-warning');
+        setLocalSaveStatus('Не сохранено · скачать', true, 'Не удалось сохранить работу. Скачай проект.');
         toast('Не удалось сохранить работу. Скачай проект через меню сохранения.', true);
       }
     });
@@ -280,6 +299,7 @@ export function createStudio(projectStorage, initial) {
   }
   function commit(mutate, message) {
     finishLiveEdit();
+    heroMotion = null;
     const before = C.clone(doc);
     try {
       mutate();
@@ -302,6 +322,7 @@ export function createStudio(projectStorage, initial) {
   }
   function undo() {
     finishLiveEdit();
+    heroMotion = null;
     if (!history.past.length) return;
     const previousIndex = doc.configIndex,
       previousFile = doc.fileName;
@@ -313,6 +334,7 @@ export function createStudio(projectStorage, initial) {
   }
   function redo() {
     finishLiveEdit();
+    heroMotion = null;
     if (!history.future.length) return;
     const previousIndex = doc.configIndex,
       previousFile = doc.fileName;
@@ -334,7 +356,6 @@ export function createStudio(projectStorage, initial) {
       canvasGeometryKey = key;
       updateZoom();
     }
-    $('projectName').textContent = doc.name;
     $('canvasName').textContent = doc.name;
     $('undoButton').disabled = !history.past.length;
     $('redoButton').disabled = !history.future.length;
@@ -457,6 +478,9 @@ export function createStudio(projectStorage, initial) {
   }
   function draw() {
     publishUI();
+    requestPaint();
+  }
+  function requestPaint() {
     if (disposed || framePending) return;
     framePending = true;
     requestAnimationFrame(() => {
@@ -465,6 +489,11 @@ export function createStudio(projectStorage, initial) {
     });
   }
   function paint() {
+    let heroesMoving = false;
+    if (heroMotion) {
+      heroesMoving = advanceHeroMotion(heroMotion, performance.now(), reducedMotion.matches);
+      if (!heroMotion.active && !heroesMoving) { heroMotion = null; publishUI(); }
+    }
     ctx.setTransform(canvas.width / workspace().w, 0, 0, canvas.height / workspace().h, 0, 0);
     ctx.clearRect(0, 0, workspace().w, workspace().h);
     if (!preview) {
@@ -511,6 +540,16 @@ export function createStudio(projectStorage, initial) {
     }
     for (const layer of doc.layers)
       if (layer.visible) for (const e of doc.entities) if (e.layer === layer.id) drawEntity(e);
+    if (heroMotion?.active && !preview) {
+      const { layout, positions, from, ids, valid } = heroMotion, position = positions[from];
+      ctx.save();
+      ctx.shadowColor = '#00000090'; ctx.shadowBlur = 12 * zoom * density; ctx.shadowOffsetY = 5 * zoom * density;
+      ctx.globalAlpha = valid ? 1 : 0.6;
+      drawHeroPortrait(ids[from], position.x, position.y, layout.cardW, layout.cardH);
+      ctx.shadowColor = 'transparent'; ctx.strokeStyle = valid ? '#c4b5ed' : '#df9ba9'; ctx.lineWidth = 1.5 / zoom;
+      ctx.strokeRect(position.x, position.y, layout.cardW, layout.cardH);
+      ctx.restore();
+    }
     if (!preview && (workspace().w > C.WIDTH || workspace().h > C.HEIGHT)) {
       ctx.save();
       ctx.strokeStyle = '#c4b5ed';
@@ -589,6 +628,16 @@ export function createStudio(projectStorage, initial) {
         ctx.setLineDash([]);
       }
     }
+    if (heroesMoving) requestPaint();
+  }
+  function drawHeroPortrait(id, x, y, width, height) {
+    const img = loadPortrait(id);
+    ctx.fillStyle = '#202831'; ctx.fillRect(x, y, width, height);
+    if (img?.complete && img.naturalWidth) {
+      ctx.filter = 'saturate(0.7)';
+      ctx.drawImage(img, ...portraitSourceRect(img, width, height, heroById.get(id)?.portraitCrop), x, y, width, height);
+      ctx.filter = 'none';
+    }
   }
   function drawEntity(e) {
     if (e.rotation) prepareTextMetrics([e]);
@@ -598,37 +647,24 @@ export function createStudio(projectStorage, initial) {
     if (e.type === 'heroes') {
       // Titles may overflow their list width in Panorama. Do not squeeze them.
       drawCategoryLabel(ctx, e.name, e.x, e.y);
-      const best = C.heroLayout(e);
+      const motion = heroMotion?.groupId === e.id ? heroMotion : null;
+      const best = motion?.layout || C.heroLayout(e);
       ctx.beginPath();
       ctx.rect(e.x, e.y + DOTA.header, e.w, e.h);
       ctx.clip();
       if (best)
-        e.heroIds.forEach((id, i) => {
-          const x = e.x + best.left + (i % best.cols) * best.stepX,
-            y = e.y + best.top + Math.floor(i / best.cols) * best.stepY,
-            img = loadPortrait(id);
-          ctx.fillStyle = '#202831';
-          ctx.fillRect(x, y, best.cardW, best.cardH);
-          if (img?.complete && img.naturalWidth) {
-            // Cover crop, never stretch a portrait; no names, levels or badges on cards.
-            const scale = Math.max(best.cardW / img.naturalWidth, best.cardH / img.naturalHeight),
-              sw = best.cardW / scale,
-              sh = best.cardH / scale;
-            ctx.filter = 'saturate(0.7)';
-            ctx.drawImage(
-              img,
-              (img.naturalWidth - sw) / 2,
-              (img.naturalHeight - sh) / 2,
-              sw,
-              sh,
-              x,
-              y,
-              best.cardW,
-              best.cardH
-            );
-            ctx.filter = 'none';
-          }
+        (motion?.ids || e.heroIds).forEach((id, i) => {
+          if (motion?.active && i === motion.from) return;
+          const x = motion ? motion.positions[i].x : e.x + best.left + (i % best.cols) * best.stepX,
+            y = motion ? motion.positions[i].y : e.y + best.top + Math.floor(i / best.cols) * best.stepY;
+          drawHeroPortrait(id, x, y, best.cardW, best.cardH);
         });
+      if (motion?.active) {
+        const slot = motion.slots[motion.to];
+        ctx.fillStyle = '#c4b5ed14'; ctx.fillRect(slot.x, slot.y, best.cardW, best.cardH);
+        ctx.strokeStyle = '#c4b5ed'; ctx.lineWidth = 1 / zoom; ctx.setLineDash([4 / zoom, 3 / zoom]);
+        ctx.strokeRect(slot.x, slot.y, best.cardW, best.cardH); ctx.setLineDash([]);
+      }
     } else {
       for (const glyph of C.textGlyphs(e)) drawCategoryLabel(ctx, glyph.text, glyph.x, glyph.y);
     }
@@ -765,7 +801,7 @@ export function createStudio(projectStorage, initial) {
         items.every((item) => item.layer === artLayer.id) &&
         doc.entities.filter((item) => item.layer === artLayer.id).length === items.length;
     $('inspectorContent').innerHTML =
-      `<h3>${wholeArtwork ? 'ASCII-слой' : items.length === 1 ? (e.type === 'heroes' ? 'Группа героев' : e.type === 'symbol' ? 'Символ' : 'Текст') : 'Выделение объектов'}</h3>${wholeArtwork ? `<label class="field-label" for="artworkName">Название слоя</label><input id="artworkName" value="${esc(artLayer.name)}" maxlength="200" ${locked ? 'disabled' : ''}>` : items.length === 1 ? `<label class="field-label" for="objectName">${e.type === 'heroes' ? 'Название группы' : 'Текст / символ'}</label><textarea id="objectName" rows="3" maxlength="5000" ${locked ? 'disabled' : ''}>${esc(e.type === 'heroes' ? e.name : e.text)}</textarea>` : `<p class="hint">${items.length} объектов · перемещай и изменяй вместе</p>`}<label class="field-label">Позиция</label><div class="field-pair">${numericField('x', 'X', b.x, locked)}${numericField('y', 'Y', b.y, locked)}</div><label class="field-label">Размер</label><div class="field-pair">${numericField('w', 'W', b.w, locked)}${numericField('h', 'H', b.h, locked)}</div>${rotatable ? `<label class="field-label">Поворот расположения</label>${numericField('rotation', 'Угол, °', C.selectionFrame(items).rotation, locked)}<p class="hint">Символы остаются прямыми. Shift — шаг 15°.</p>` : ''}<label class="field-label">Выровнять по холсту</label><div class="align-actions"><button data-action="align-left" title="По левому краю" aria-label="По левому краю">⊢</button><button data-action="align-center" title="По горизонтальному центру" aria-label="По горизонтальному центру">↔</button><button data-action="align-right" title="По правому краю" aria-label="По правому краю">⊣</button></div><label class="field-label" for="objectLayer">Слой</label><select id="objectLayer" ${locked ? 'disabled' : ''}>${doc.layers.map((l) => `<option value="${l.id}" ${l.id === e.layer ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}</select><div class="selection-actions"><button class="icon-button" data-action="duplicate" title="Дублировать (Ctrl+D)" aria-label="Дублировать">${icon('copy')}</button><button class="icon-button" data-action="center" title="По центру холста" aria-label="По центру холста">${icon('align')}</button><button class="icon-button" data-action="flip" title="Отразить позиции по горизонтали" aria-label="Отразить позиции по горизонтали">${icon('flip')}</button><button class="icon-button" data-action="rotate" title="${rotatable ? 'Повернуть на 90°' : 'Повернуть расположение на 90°'}" aria-label="${rotatable ? 'Повернуть на 90 градусов' : 'Повернуть расположение на 90 градусов'}">${icon('rotate')}</button><button class="icon-button danger" data-action="delete" title="Удалить (Delete)" aria-label="Удалить">${icon('trash')}</button></div>${locked ? '<p class="hint">Слой заблокирован или скрыт. Открой его в списке слоёв для редактирования.</p>' : ''}${items.length === 1 && e.type === 'heroes' ? `<div class="hero-chips">${e.heroIds.map((id, i) => `<span class="hero-chip">${heroById.has(id) ? `<img src="${heroById.get(id)?.thumbnail || `assets/heroes/${id}.png`}" alt="">` : ''}${esc(heroById.get(id)?.name || '#' + id)}<button data-remove-hero="${i}" aria-label="Убрать ${esc(heroById.get(id)?.name || id)}" ${locked ? 'disabled' : ''}>×</button></span>`).join('')}</div><button id="editGroupHeroes" class="button secondary full compact" ${locked ? 'disabled' : ''}>+ Выбрать героев</button><p class="hint">Тяни за любой угол. Shift сохраняет пропорции.</p>` : ''}`;
+      `<h3>${wholeArtwork ? 'ASCII-слой' : items.length === 1 ? (e.type === 'heroes' ? 'Группа героев' : e.type === 'symbol' ? 'Символ' : 'Текст') : 'Выделение объектов'}</h3>${wholeArtwork ? `<label class="field-label" for="artworkName">Название слоя</label><input id="artworkName" value="${esc(artLayer.name)}" maxlength="200" ${locked ? 'disabled' : ''}>` : items.length === 1 ? `<label class="field-label" for="objectName">${e.type === 'heroes' ? 'Название группы' : 'Текст / символ'}</label><textarea id="objectName" rows="3" maxlength="5000" ${locked ? 'disabled' : ''}>${esc(e.type === 'heroes' ? e.name : e.text)}</textarea>` : `<p class="hint">${items.length} объектов · перемещай и изменяй вместе</p>`}<label class="field-label">Позиция</label><div class="field-pair">${numericField('x', 'X', b.x, locked)}${numericField('y', 'Y', b.y, locked)}</div><label class="field-label">Размер</label><div class="field-pair">${numericField('w', 'W', b.w, locked)}${numericField('h', 'H', b.h, locked)}</div>${rotatable ? `<label class="field-label">Поворот расположения</label>${numericField('rotation', 'Угол, °', C.selectionFrame(items).rotation, locked)}<p class="hint">Символы остаются прямыми. Shift — шаг 15°.</p>` : ''}<label class="field-label">Выровнять по холсту</label><div class="align-actions"><button data-action="align-left" title="По левому краю" aria-label="По левому краю">⊢</button><button data-action="align-center" title="По горизонтальному центру" aria-label="По горизонтальному центру">↔</button><button data-action="align-right" title="По правому краю" aria-label="По правому краю">⊣</button></div><label class="field-label" for="objectLayer">Слой</label><select id="objectLayer" ${locked ? 'disabled' : ''}>${doc.layers.map((l) => `<option value="${l.id}" ${l.id === e.layer ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}</select><div class="selection-actions"><button class="icon-button" data-action="duplicate" title="Дублировать (Ctrl+D)" aria-label="Дублировать">${icon('copy')}</button><button class="icon-button" data-action="center" title="По центру холста" aria-label="По центру холста">${icon('align')}</button><button class="icon-button" data-action="flip" title="Отразить позиции по горизонтали" aria-label="Отразить позиции по горизонтали">${icon('flip')}</button><button class="icon-button" data-action="rotate" title="${rotatable ? 'Повернуть на 90°' : 'Повернуть расположение на 90°'}" aria-label="${rotatable ? 'Повернуть на 90 градусов' : 'Повернуть расположение на 90 градусов'}">${icon('rotate')}</button><button class="icon-button danger" data-action="delete" title="Удалить (Delete)" aria-label="Удалить">${icon('trash')}</button></div>${locked ? '<p class="hint">Слой заблокирован или скрыт. Открой его в списке слоёв для редактирования.</p>' : ''}${items.length === 1 && e.type === 'heroes' ? `<div class="hero-chips">${e.heroIds.map((id, i) => `<span class="hero-chip" data-hero-order="${i}" tabindex="${locked ? -1 : 0}" role="group" aria-label="${esc(heroById.get(id)?.name || id)}: ${i + 1} из ${e.heroIds.length}" aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight">${heroById.has(id) ? `<img src="${heroById.get(id)?.thumbnail || `assets/heroes/${id}.png`}" alt="">` : ''}${esc(heroById.get(id)?.name || '#' + id)}<button data-remove-hero="${i}" aria-label="Убрать ${esc(heroById.get(id)?.name || id)}" ${locked ? 'disabled' : ''}>×</button></span>`).join('')}</div><button id="editGroupHeroes" class="button secondary full compact" ${locked ? 'disabled' : ''}>+ Выбрать героев</button><p class="hint">Перетаскивай портреты, чтобы менять порядок. С клавиатуры: выбери героя в списке и нажми Alt + ← / →. Всю группу можно двигать за название или свободное место; Shift сохраняет пропорции при изменении размера.</p>` : ''}`;
     if (wholeArtwork && items.length === 1)
       $('artworkName').insertAdjacentHTML(
         'afterend',
@@ -858,6 +894,16 @@ export function createStudio(projectStorage, initial) {
       }
       commit(() => items.forEach((item) => (item.layer = layer.id)));
     };
+    $('inspectorContent').querySelectorAll('[data-hero-order]').forEach(chip => {
+      chip.onkeydown = event => {
+        if (event.target !== chip || !event.altKey || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+        event.preventDefault(); event.stopPropagation();
+        const from = Number(chip.dataset.heroOrder), to = from + (event.key === 'ArrowLeft' ? -1 : 1);
+        if (reorderGroupHero(e.id, from, to)) requestAnimationFrame(() => {
+          $('inspectorContent').querySelector(`[data-hero-order="${to}"]`)?.focus({ preventScroll: true });
+        });
+      };
+    });
     $('inspectorContent')
       .querySelectorAll('[data-action]')
       .forEach((button) => {
@@ -1065,12 +1111,14 @@ export function createStudio(projectStorage, initial) {
     return Array.from($('brushInput').value || '·')[0] || '·';
   }
   function updateStroke(shift) {
+    setDrawingShift(gesture, shift);
+    canvas.style.cursor = gesture.repositioning ? 'move' : '';
     drawFrame = centerBrushPoints(drawingPoints(
       gesture.tool,
       gesture.path,
       gesture.settings,
       gesture.seed,
-      shift,
+      shift && !gesture.repositioning,
       frameStyle,
       workspace()
     ), ink);
@@ -1111,6 +1159,7 @@ export function createStudio(projectStorage, initial) {
   listen(canvas, 'pointerdown', (event) => {
     if (preview) return;
     if ((event.button !== 0 && event.button !== 1) || gesture) return;
+    heroMotion = null;
     event.preventDefault();
     canvas.focus({ preventScroll: true });
     const p = point(event);
@@ -1165,7 +1214,11 @@ export function createStudio(projectStorage, initial) {
         };
       } else {
         const target = hit(p);
-        if (target) {
+        const selectedHero = target?.type === 'heroes' && selected.size === 1 && selected.has(target.id) && heroAt(target, p) >= 0;
+        if (!event.shiftKey && !event.altKey && hitSelectionFrame(b, p) && !selectedHero) {
+          gesture = { type: 'move', start: p, before: C.clone(doc), items: C.clone(items) };
+          canvas.style.cursor = 'move';
+        } else if (target) {
           const artwork =
             event.altKey && doc.layers.find((l) => l.id === target.layer)?.kind === 'artwork';
           const ids = artwork
@@ -1176,13 +1229,14 @@ export function createStudio(projectStorage, initial) {
             for (const id of ids) remove ? selected.delete(id) : selected.add(id);
           } else if (artwork) selected = new Set(ids);
           else selected = selectionOnClick(selected, target.id);
-          if (editable(target) && selected.has(target.id))
-            gesture = {
-              type: 'move',
-              start: p,
-              before: C.clone(doc),
-              items: C.clone(editableSelection())
-            };
+          if (editable(target) && selected.has(target.id)) {
+            const from = target.type === 'heroes' && selected.size === 1 && !event.shiftKey && !event.altKey
+              ? heroAt(target, p) : -1;
+            gesture = from >= 0 ? {
+              type: 'hero-reorder', groupId: target.id, from, start: p, current: p,
+              clientX: event.clientX, clientY: event.clientY, before: C.clone(doc)
+            } : { type: 'move', start: p, before: C.clone(doc), items: C.clone(editableSelection()) };
+          }
           renderInspector();
           renderLayers();
           draw();
@@ -1227,6 +1281,30 @@ export function createStudio(projectStorage, initial) {
   function eraseAt(p) {
     eraseSymbols(doc, p);
   }
+  function reorderGroupHero(groupId, from, to) {
+    const group = doc.entities.find(e => e.id === groupId && e.type === 'heroes');
+    if (!group || !editable(group) || preview || gesture || from === to ||
+        ![from, to].every(index => Number.isInteger(index) && index >= 0 && index < group.heroIds.length)) return false;
+    const motion = createHeroMotion(group, from, performance.now());
+    if (!commit(() => { group.heroIds = moveHero(group.heroIds, from, to); })) return false;
+    targetHeroMotion(motion, to); motion.active = false; heroMotion = motion; draw();
+    return true;
+  }
+  function updateHeroDrag(event, p) {
+    const group = doc.entities.find(e => e.id === gesture.groupId);
+    if (!group || !editable(group)) return;
+    if (!heroMotion) {
+      if (Math.hypot(event.clientX - gesture.clientX, event.clientY - gesture.clientY) < 5) return;
+      heroMotion = createHeroMotion(group, gesture.from, performance.now());
+      const slot = heroMotion.slots[gesture.from];
+      gesture.offset = { x: gesture.start.x - slot.x, y: gesture.start.y - slot.y };
+    }
+    const to = heroDropIndex(group, p, heroMotion.layout);
+    heroMotion.valid = to >= 0;
+    if (to >= 0 && to !== heroMotion.to) targetHeroMotion(heroMotion, to);
+    heroMotion.positions[gesture.from] = { x: p.x - gesture.offset.x, y: p.y - gesture.offset.y };
+    canvas.style.cursor = to >= 0 ? 'grabbing' : 'not-allowed';
+  }
   listen(canvas, 'pointermove', (event) => {
     if (gesture && gesture.pointerId !== event.pointerId) return;
     const p = point(event);
@@ -1249,7 +1327,13 @@ export function createStudio(projectStorage, initial) {
                   4) %
                   4
               ]
-            : '';
+            : tool === 'select' && !preview && !spaceDown ? (() => {
+                const group = hit(p);
+                const inside = hitSelectionFrame(frame, p);
+                const reorder = group?.type === 'heroes' && (selected.size <= 1 || !selected.has(group.id)) &&
+                  (!inside || selected.has(group.id)) && heroAt(group, p) >= 0;
+                return reorder ? 'grab' : inside ? 'move' : '';
+              })() : '';
       return;
     }
     if (gesture.type === 'pan') {
@@ -1258,6 +1342,7 @@ export function createStudio(projectStorage, initial) {
       return;
     }
     gesture.current = p;
+    if (gesture.type === 'hero-reorder') updateHeroDrag(event, p);
     if (gesture.type === 'reference') doc.reference = transformReference(gesture.before.reference,
       { x: p.x - gesture.start.x, y: p.y - gesture.start.y }, gesture.handle, event.shiftKey);
     if (gesture.type === 'move') {
@@ -1277,7 +1362,7 @@ export function createStudio(projectStorage, initial) {
     if (gesture.type === 'resize') updateResize(p, event.shiftKey);
     if (gesture.type === 'rotate') updateRotation(p, event.shiftKey);
     if (gesture.type === 'draw') {
-      gesture.path.push(snapped(p));
+      advanceDrawingStroke(gesture, snapped(p), event.shiftKey);
       updateStroke(event.shiftKey);
     }
     if (gesture.type === 'lasso') gesture.path.push(p);
@@ -1286,6 +1371,20 @@ export function createStudio(projectStorage, initial) {
   });
   function finishGesture(event, cancel = false) {
     if (!gesture || (event && gesture.pointerId !== event.pointerId)) return;
+    if (!cancel && event && gesture.type === 'draw') {
+      advanceDrawingStroke(gesture, snapped(point(event)), event.shiftKey);
+      updateStroke(event.shiftKey);
+    }
+    if (gesture.type === 'hero-reorder') {
+      if (!cancel && event) updateHeroDrag(event, point(event));
+      if (heroMotion) {
+        const group = doc.entities.find(e => e.id === gesture.groupId);
+        cancel ||= !heroMotion.valid || !group || !editable(group);
+        if (!cancel) group.heroIds = moveHero(heroMotion.ids, heroMotion.from, heroMotion.to);
+        else targetHeroMotion(heroMotion, heroMotion.from);
+        heroMotion.active = false;
+      }
+    }
     if (cancel && gesture.before) doc = gesture.before;
     else if (!cancel && gesture.type === 'draw')
       for (const p of drawFrame || [])
@@ -1335,13 +1434,12 @@ export function createStudio(projectStorage, initial) {
       if (gesture.type === 'draw') remember((drawFrame || []).map((p) => p.ch).join(''));
       save();
     }
-    const wasLasso = gesture.type === 'lasso';
+    const wasLasso = gesture.type === 'lasso', pointerId = gesture.pointerId;
     gesture = null;
     if (wasLasso && !cancel) setTool('select');
     canvas.style.cursor = '';
     drawFrame = null;
-    if (event && canvas.hasPointerCapture(event.pointerId))
-      canvas.releasePointerCapture(event.pointerId);
+    if (canvas.hasPointerCapture(pointerId)) canvas.releasePointerCapture(pointerId);
     render();
   }
   listen(canvas, 'pointerup', (event) => finishGesture(event));
@@ -1378,7 +1476,8 @@ export function createStudio(projectStorage, initial) {
     }
   });
 
-  let modalCloseTimer;
+  let modalCloseTimer, exportGuideCleanup;
+  listen(modal, 'close', () => { exportGuideCleanup?.(); exportGuideCleanup = null; });
   function closeModal() {
     if (!modal.open || modal.classList.contains('closing')) return;
     modal.classList.add('closing');
@@ -1394,9 +1493,11 @@ export function createStudio(projectStorage, initial) {
     event.preventDefault();
     closeModal();
   });
-  function openModal(title, body, footer = '') {
+  function openModal(title, body, footer = '', view = '') {
+    exportGuideCleanup?.(); exportGuideCleanup = null;
     clearTimeout(modalCloseTimer);
     modal.classList.remove('closing');
+    modal.dataset.view = view;
     $('modalContent').innerHTML =
       `<div class="modal-header"><h2>${esc(title)}</h2><button class="icon-button" data-close aria-label="Закрыть">${icon('close')}</button></div><div class="modal-body">${body}</div>${footer ? `<div class="modal-footer">${footer}</div>` : ''}`;
     $('modalContent')
@@ -1416,16 +1517,18 @@ export function createStudio(projectStorage, initial) {
         closeModal();
     }
   });
-  function renameProject() {
+  function renameProject(index = doc.configIndex) {
+    const config = C.configurations(doc).find(item => item.index === index);
+    if (!config) return;
     openModal(
       'Переименовать сетку',
-      `<label class="field-label" for="projectNameInput">Название сетки</label><input id="projectNameInput" value="${esc(doc.name)}" maxlength="200">`,
+      `<label class="field-label" for="projectNameInput">Название сетки</label><input id="projectNameInput" value="${esc(config.name)}" maxlength="200">`,
       '<button class="button secondary" data-close>Отмена</button><button id="confirmName" class="button primary">Сохранить</button>'
     );
     const apply = () => {
       const name = $('projectNameInput').value.trim();
       if (!name) return;
-      commit(() => (doc.name = name));
+      commit(() => (doc = C.renameConfig(doc, index, name)));
       closeModal();
     };
     $('confirmName').onclick = apply;
@@ -1492,6 +1595,7 @@ export function createStudio(projectStorage, initial) {
     $('asciiText').focus();
   }
   function resetGridView() {
+    heroMotion = null;
     selected.clear();
     pickerGroupId = null;
     closeImageDialog();
@@ -1572,14 +1676,15 @@ export function createStudio(projectStorage, initial) {
   }
   async function openRecovery() {
     finishLiveEdit();
-    openModal('Копии проекта', '<p role="status">Читаем сохранённые копии…</p>', '<button id="downloadCurrentProject" class="button primary">Скачать текущий проект</button>');
+    openModal('Версии проекта', '<p role="status">Читаем сохранённые версии…</p>', '<button id="downloadCurrentProject" class="button primary">Скачать текущий проект</button>', 'versions');
     $('downloadCurrentProject').onclick = downloadProject;
     const records = await projectStorage.records();
     if (disposed || !modal.open || !$('downloadCurrentProject')) return;
     const seen = new Set();
     const unique = records.filter((record) => { if (seen.has(record.raw)) return false; seen.add(record.raw); return true; });
+    const warning = saveIndicator(localSaveStatus, cloudSaveStatus).detail || saveWarning || initial.issue;
     $('modalContent').querySelector('.modal-body').innerHTML =
-      `<p>Перед восстановлением текущая работа сохраняется отдельной копией. Файл проекта содержит все сетки, слои и подложку.</p>${saveWarning || initial.issue ? `<p class="recovery-warning" role="status">${esc(saveWarning || initial.issue)}</p>` : ''}<div class="recovery-list">${unique.length ? unique.map((record, i) => `<div class="recovery-row"><div><strong>${esc(record.name)}</strong><small>${record.savedAt ? esc(new Date(record.savedAt).toLocaleString('ru-RU')) : 'Сохранение старой версии'} · ${esc(record.reason)} · ${esc(record.version)}</small></div><div class="recovery-actions"><button class="button secondary compact" data-recovery-download="${i}">Скачать</button>${record.valid ? `<button class="button secondary compact" data-recovery-restore="${i}">Восстановить</button>` : '<span class="recovery-warning">Не удалось прочитать</span>'}</div></div>`).join('') : '<p class="hint">Пока нет копий. Они появятся после первого изменения.</p>'}</div>`;
+      `<p>Перед восстановлением текущая работа сохраняется отдельной копией. Файл проекта содержит все сетки, слои и подложку.</p>${warning ? `<p class="recovery-warning" role="status">${esc(warning)}</p>` : ''}<div class="recovery-list">${unique.length ? unique.map((record, i) => `<div class="recovery-row"><div><strong>${esc(record.name)}</strong><small>${record.savedAt ? esc(new Date(record.savedAt).toLocaleString('ru-RU')) : 'Сохранение старой версии'} · ${esc(record.reason)} · ${esc(record.version)}</small></div><div class="recovery-actions"><button class="button secondary compact" data-recovery-download="${i}">Скачать</button>${record.valid ? `<button class="button secondary compact" data-recovery-restore="${i}">Восстановить</button>` : '<span class="recovery-warning">Не удалось прочитать</span>'}</div></div>`).join('') : '<p class="hint">Пока нет копий. Они появятся после первого изменения.</p>'}</div>`;
     $('modalContent').querySelectorAll('[data-recovery-download]').forEach((button) => {
       button.onclick = () => download(unique[Number(button.dataset.recoveryDownload)].raw, `GridStudio-backup-${Date.now()}.gridstudio.json`);
     });
@@ -1610,9 +1715,11 @@ export function createStudio(projectStorage, initial) {
     const heroCount = categories.reduce((n, c) => n + c.hero_ids.length, 0);
     openModal(
       'Скачать файл с сетками',
-      `<p>Все сетки (${output.configs.length}) и изменения в них сохранятся в одном JSON.</p><p class="hint">Объекты и герои ниже — в выбранной сетке «${esc(doc.name)}».</p><div class="export-summary"><div><strong id="exportCategoryCount">${categories.length}</strong>КАТЕГОРИЙ</div><div><strong>${heroCount}</strong>ГЕРОЕВ</div><div><strong>${output.configs.length}</strong>СЕТОК В ФАЙЛЕ</div></div>${issues.length ? issues.map((w) => `<div class="export-warning">${esc(w)}</div>`).join('') : `<div class="export-ok">${icon('check')}Объекты находятся внутри холста</div>`}<label class="check-row export-row-option"><input id="compactExportRows" type="checkbox" checked>Объединять точно совпадающие строки при скачивании</label><p class="hint">В редакторе символы останутся отдельными. Отключи, чтобы сохранить каждую категорию отдельно.</p><label class="field-label" for="exportName">Название сетки в игре</label><input id="exportName" maxlength="200" value="${esc(doc.name)}"><section class="export-guide"><h3>Как использовать в Dota 2</h3><ol><li>Закрой Dota 2 и сделай резервную копию существующего <strong>hero_grid_config.json</strong>.</li><li>Открой папку:<code>C:&#92;Program Files (x86)&#92;Steam&#92;userdata&#92;ID АККАУНТА&#92;570&#92;remote&#92;cfg</code><p><strong>ID АККАУНТА — ID из Dota 2 или код друга в Steam.</strong> Путь может отличаться, если Steam установлен в другую папку.</p></li><li>Помести скачанный <strong>hero_grid_config.json</strong> в эту папку, затем запусти игру и выбери сетку в разделе героев.</li></ol><p>Если импортирован файл с несколькими сетками, остальные сетки сохранятся в экспорте.</p><p>Отображение шрифта и портретов в игре может отличаться от превью.</p></section>`,
-      '<button id="downloadProject" class="button secondary">Сохранить проект</button><button id="downloadDota" class="button primary">Скачать весь JSON</button>'
+      `<p>Все сетки (${output.configs.length}) и изменения в них сохранятся в одном JSON.</p><p class="hint">Объекты и герои ниже — в выбранной сетке «${esc(doc.name)}».</p><div class="export-summary"><div><strong id="exportCategoryCount">${categories.length}</strong>КАТЕГОРИЙ</div><div><strong>${heroCount}</strong>ГЕРОЕВ</div><div><strong>${output.configs.length}</strong>СЕТОК В ФАЙЛЕ</div></div>${issues.length ? issues.map((w) => `<div class="export-warning">${esc(w)}</div>`).join('') : `<div class="export-ok">${icon('check')}Объекты находятся внутри холста</div>`}<label class="check-row export-row-option"><input id="compactExportRows" type="checkbox" checked>Объединять точно совпадающие строки при скачивании</label><p class="hint">В редакторе символы останутся отдельными. Отключи, чтобы сохранить каждую категорию отдельно.</p><details class="export-guide"><summary>Как использовать в Dota 2</summary><ol><li>Закрой Dota 2 и сделай резервную копию существующего <strong>hero_grid_config.json</strong>.</li><li>Найди папку своего аккаунта:${steamFolderMarkup()}<p class="steam-folder-note">Код друга — это ID аккаунта в Dota 2. Если Steam установлен в другую папку, укажи её выше.</p></li><li>Помести скачанный <strong>hero_grid_config.json</strong> в эту папку, затем запусти игру и выбери сетку в разделе героев.</li></ol><p>Если импортирован файл с несколькими сетками, остальные сетки сохранятся в экспорте.</p><p>Отображение шрифта и портретов в игре может отличаться от превью.</p></details>`,
+      '<button id="shareCatalogGrid" class="button secondary">Опубликовать в галерею</button><button id="downloadProject" class="button secondary">Сохранить JSON проекта</button><button id="downloadDota" class="button primary">Скачать файл для DOTA</button>',
+      'export'
     );
+    exportGuideCleanup = mountSteamFolder($('steamFolder'), icon);
     const exportCurrent = () => C.exportDota(doc, (text) => measureCategoryWidth(ctx, text), { compactRows: $('compactExportRows').checked });
     const exportWarnings = document.createElement('div');
     $('compactExportRows').closest('label').before(exportWarnings);
@@ -1626,15 +1733,16 @@ export function createStudio(projectStorage, initial) {
     };
     $('downloadProject').onclick = downloadProject;
     $('downloadDota').onclick = () => {
-      const name = $('exportName').value.trim();
-      if (!name) {
-        $('exportName').focus();
-        return;
-      }
-      if (name !== doc.name) commit(() => (doc.name = name));
       download(JSON.stringify(exportCurrent(), null, 2), 'hero_grid_config.json');
       closeModal();
       toast('hero_grid_config.json скачан');
+    };
+    $('shareCatalogGrid').onclick = () => {
+      try {
+        const grid = selectedCatalogGrid(doc, (text) => measureCategoryWidth(ctx, text));
+        modal.close();
+        window.dispatchEvent(new CustomEvent('gridstudio:share', { detail: grid }));
+      } catch (error) { toast(error.message, true); }
     };
   }
   let importRequest = 0;
@@ -2022,13 +2130,15 @@ export function createStudio(projectStorage, initial) {
       ['Переместить на 1 / 10 px', 'Shift + ↑↓←→'],
       ['Выбор героев', '/'],
       ['Сохранить пропорции', 'Shift + угол'],
+      ['Сдвинуть фигуру во время рисования', 'Удерживать Shift'],
       ['Поворот текста', 'Снаружи угла'],
       ['Поворот с шагом 15°', 'Shift + поворот']
     ];
     openModal(
       `GridStudio ${APP_VERSION} · Работа с холстом`,
-      `<p>Выбери группу на холсте и нажми «+» после последнего героя. В попапе можно искать героев и выбирать атрибут. На вкладке «Рисование» можно рисовать символами, а «ASCII» превращает изображение в редактируемый рисунок.</p><p>Тяни объекты для перемещения. Любой угол выделения меняет размер. Удерживай <kbd>Shift</kbd>, чтобы сохранить пропорции. Для поворота текста тяни снаружи угла рамки или за круглую ручку; <kbd>Shift</kbd> задаёт шаг 15°. Точный угол можно ввести в свойствах. <kbd>Shift</kbd> + клик добавляет объект к выделению. Протяни рамку на пустом месте, чтобы выделить несколько объектов. <kbd>Alt</kbd> + клик выбирает весь слой рисунка. Двойной клик открывает редактирование текста.</p><h3>Горячие клавиши</h3><div class="shortcuts-grid">${shortcuts.map(([text, key]) => `<div><span>${text}</span><kbd>${key}</kbd></div>`).join('')}</div><h3>О сохранении</h3><p class="hint">Проект сохраняется в этом браузере вместе со всеми сетками, слоями и подложкой. Перед обновлением сохраняется резервная копия. Нажми на статус сохранения или «Копии проекта», чтобы скачать или восстановить её. Очистка данных браузера удаляет локальные копии — для независимого хранения скачай файл проекта. Картинка конвертера и рисунок в отдельном окне сохранятся в проект только после добавления на холст.</p><p class="hint">Превью приблизительное: файл Dota не хранит цвета и произвольные размеры шрифта. Поворот меняет расположение символов и сохраняется в Dota JSON. Можно загрузить локальный Radiance для более близкого отображения текста.</p><p><a class="source-link" href="https://github.com/linsisss/dota2-grid-toolkit" target="_blank" rel="noreferrer">Исходный репозиторий ↗</a></p>`,
-      '<button id="helpRecovery" class="button secondary">Копии проекта</button><button class="button primary" data-close>Всё понятно</button>'
+      `<p>Выбери группу на холсте и нажми «+» после последнего героя. В попапе можно искать героев и выбирать атрибут. Перетаскивай портреты внутри группы, чтобы менять их порядок; за название или свободное место перемещается вся группа. Esc отменяет перетаскивание, Ctrl+Z — готовую перестановку. На вкладке «Рисование» можно рисовать символами, а «ASCII» превращает изображение в редактируемый рисунок.</p><p>Тяни объекты для перемещения. Любой угол выделения меняет размер. Удерживай <kbd>Shift</kbd>, чтобы сохранить пропорции. Для поворота текста тяни снаружи угла рамки или за круглую ручку; <kbd>Shift</kbd> задаёт шаг 15°. Точный угол можно ввести в свойствах. <kbd>Shift</kbd> + клик добавляет объект к выделению. Протяни рамку на пустом месте, чтобы выделить несколько объектов. <kbd>Alt</kbd> + клик выбирает весь слой рисунка. Двойной клик открывает редактирование текста.</p><h3>Горячие клавиши</h3><div class="shortcuts-grid">${shortcuts.map(([text, key]) => `<div><span>${text}</span><kbd>${key}</kbd></div>`).join('')}</div><h3>О сохранении</h3><p class="hint">Проект сохраняется в этом браузере вместе со всеми сетками, слоями и подложкой. Перед обновлением сохраняется резервная копия. Нажми «Изменения сохранены» в шапке или «Версии проекта» в этой справке, чтобы скачать или восстановить сохранение. Очистка данных браузера удаляет локальные копии — для независимого хранения скачай файл проекта. Картинка конвертера и рисунок в отдельном окне сохранятся в проект только после добавления на холст.</p><p class="hint">Превью приблизительное: файл Dota не хранит цвета и произвольные размеры шрифта. Поворот меняет расположение символов и сохраняется в Dota JSON. Можно загрузить локальный Radiance для более близкого отображения текста.</p><p><a class="source-link" href="https://github.com/linsisss/dota2-grid-toolkit" target="_blank" rel="noreferrer">Исходный репозиторий ↗</a></p>`,
+      '<button id="helpRecovery" class="button secondary">Версии проекта</button><button class="button primary" data-close>Всё понятно</button>',
+      'help'
     );
     $('helpRecovery').onclick = openRecovery;
   }
@@ -2143,8 +2253,6 @@ export function createStudio(projectStorage, initial) {
   };
   $('addGroup').onclick = () => addGroup();
   $('emptyAddGroup').onclick = () => addGroup();
-  $('renameProject').onclick = renameProject;
-  $('newProject').onclick = () => chooseTemplate('blank');
   const templateRoles = () => chooseTemplate('roles');
   const templateMinimal = () => chooseTemplate('minimal');
   $('importButton').onclick = () => $('fileInput').click();
@@ -2157,6 +2265,8 @@ export function createStudio(projectStorage, initial) {
   $('redoButton').onclick = redo;
   function setPreview(next, fullscreen = true) {
     if (preview === next) return;
+    if (gesture?.type === 'hero-reorder') finishGesture(null, true);
+    heroMotion = null;
     finishLiveEdit();
     if (next) {
       closeContextMenu();
@@ -2559,8 +2669,7 @@ export function createStudio(projectStorage, initial) {
     if (!disposed) draw();
   });
   if (initial.issue) {
-    $('saveState').textContent = 'Проверить копии проекта';
-    $('saveState').classList.add('save-warning');
+    setLocalSaveStatus('Проверить версии проекта', true, initial.issue);
     toast(initial.issue, true);
   }
   function openHeroPicker(id) {
@@ -2632,6 +2741,7 @@ export function createStudio(projectStorage, initial) {
       tool,
       mode,
       resizing: gesture?.type === 'resize',
+      reorderingHeroes: !!heroMotion,
       proportional: !!gesture?.proportional,
       rotationFrame: canRotateSelection() ? activeSelectionFrame(items) : null,
       rotating: gesture?.type === 'rotate',
@@ -2749,6 +2859,14 @@ export function createStudio(projectStorage, initial) {
     resizeCanvas,
     setZoom,
     getDocument: () => C.clone(doc),
+    addCatalogGrid: (grid) => {
+      const added = commit(() => {
+        doc = appendCatalogGrid(doc, grid);
+        selected.clear(); pickerGroupId = null;
+      }, 'Сетка из каталога добавлена');
+      if (added) resetGridView();
+      return added;
+    },
     simplifyArt: (percent) => commit(() => { doc = simplifyArtwork(doc, percent).doc; }, 'Плотность уменьшена. Ctrl+Z — отменить'),
     optimizeArt: (target) => commit(() => {
       doc = optimizeCategories(planOptimization(doc, (text) => measureCategoryWidth(ctx, text)), target).doc;
@@ -2764,6 +2882,7 @@ export function createStudio(projectStorage, initial) {
       } catch (error) { toast(error.message, true); return false; }
     },
     importGrids: () => $('fileInput').click(),
+    setSyncStatus: text => { cloudSaveStatus = text || ''; renderSaveIndicator(); },
     closeContextMenu,
     runContextAction: (action) => {
       const anchor = contextMenu?.point;
@@ -2857,10 +2976,19 @@ export function createStudio(projectStorage, initial) {
       subscribers.add(callback);
       return () => subscribers.delete(callback);
     },
+    flush: async () => {
+      finishLiveEdit();
+      await flushSave();
+      await projectStorage.queue;
+      if (saveDirty || saveInFlight) throw new Error('Не удалось сохранить файл. Скачай проект перед выходом.');
+      // The local document is durable. A slow network must not trap the user in a file.
+      projectStorage.syncPending?.();
+    },
     getSnapshot: () => snapshot,
     switchGrid,
     newGrid: () => chooseTemplate('blank'),
     renameGrid: renameProject,
+    fitCanvas: () => { if (!preview) { fit = true; updateZoom(); } },
     selectEntity: (id, additive = false) => {
       if (additive) {
         if (selected.has(id)) selected.delete(id);
@@ -2924,6 +3052,9 @@ export function createStudio(projectStorage, initial) {
     templateMinimal,
     quickImage,
     dispose: () => {
+      if (disposed) return;
+      if (gesture?.type === 'hero-reorder') finishGesture(null, true);
+      heroMotion = null;
       if (preview) setPreview(false);
       flushSave();
       disposed = true;
@@ -2938,6 +3069,7 @@ export function createStudio(projectStorage, initial) {
       clearTimeout(toastTimer);
       clearTimeout(convertTimer);
       clearTimeout(modalCloseTimer);
+      exportGuideCleanup?.();
       clearTimeout(imageCloseTimer);
       imageRequest++;
       imageDialog.close();

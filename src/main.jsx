@@ -10,6 +10,7 @@ import '../styles/focus.css';
 import '../styles/editor-actions.css';
 import '../styles/editor-controls.css';
 import '../styles/editor-fixes.css';
+import '../styles/editor-chrome.css';
 // Keep one root if the entry module itself is updated by Vite. App is a separate
 // Fast Refresh boundary, so ordinary component edits do not remount this entry.
 const root = import.meta.hot?.data.root ?? createRoot(document.getElementById('root'));
