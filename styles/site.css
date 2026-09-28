@@ -1,3 +1,7 @@
+/* Replace native focus outlines without hiding keyboard focus on controls. */
+:focus-visible { outline:2px solid var(--accent, #c4b5ed); outline-offset:3px; }
+:focus:not(:focus-visible), dialog:focus { outline:none; }
+
 /* SF Pro Display is loaded as a web font; font binaries are not redistributed. */
 @font-face {
   font-family: 'SF Pro Display';

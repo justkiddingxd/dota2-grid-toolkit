@@ -211,7 +211,7 @@ test('alignment, overflow, cropping, mirrors and image conversion follow custom 
     null,
     doc.canvas
   );
-  assert.ok(points.some((p) => p.x === 1560 && p.y === 850));
+  assert.ok(points.some((p) => p.x === 1590 && p.y === 880));
   const w = 32,
     h = 32,
     data = new Uint8ClampedArray(w * h * 4).fill(255);

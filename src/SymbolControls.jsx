@@ -15,6 +15,7 @@ export function CategoryCheckbox({ value, chars, onChange }) {
         ref={ref}
         type="checkbox"
         checked={state.all}
+        disabled={!Array.from(chars).length}
         onChange={(e) => onChange(toggleCategory(value, chars, e.target.checked))}
       />
       Выбрать все символы
@@ -44,7 +45,7 @@ export function RecentSymbols({ symbols = [], onPick }) {
     </div>
   );
 }
-export function CategoryWarning({ count }) {
+export function CategoryWarning({ count, onOptimize }) {
   if (count <= 2000) return null;
   return (
     <div className="category-warning" role="alert">
@@ -53,6 +54,7 @@ export function CategoryWarning({ count }) {
         <strong>{count.toLocaleString('ru-RU')} категорий — высокая нагрузка</strong>
         <p>Больше 2000 категорий могут вызывать лаги и вылет Dota 2.</p>
       </div>
+      {onOptimize && <button className="button secondary compact" onClick={onOptimize}>Сократить категории</button>}
     </div>
   );
 }

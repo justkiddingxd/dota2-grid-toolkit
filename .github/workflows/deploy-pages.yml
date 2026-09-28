@@ -1,8 +1,6 @@
 name: Deploy GitHub Pages
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -15,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -23,21 +21,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - name: Install dependencies
-        run: npm ci
-      - name: Build site
-        run: npm run build
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
-      - name: Upload site artifact
+      - name: Upload domain announcement
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: github-pages
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4

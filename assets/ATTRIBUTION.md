@@ -1,5 +1,7 @@
 # Asset sources
 
+The ID 127 target uses `assets/portraits/127.png`, the unmodified Dota 2 screenshot supplied by the user on 2026-09-28. The hero-card renderer displays the portrait area above the screenshot's nameplate (`portraitCrop` in the generated hero data). The model and artwork belong to Valve, outside this repository's MIT license. It is a special Agility entry added first by the data build script. The earlier geometric placeholder `127.svg` is no longer used by the current hero catalog.
+
 Attribute icons in `assets/attributes/` are Valve's original Strength, Agility, Intelligence and Universal icons from `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/icons/hero_{strength,agility,intelligence,universal}.png`, retrieved on 2026-09-26. They are served locally and remain Valve's artwork, outside this repository's MIT license.
 
 Hero names, IDs, attributes and roles are an offline snapshot of [OpenDota dotaconstants](https://github.com/odota/dotaconstants/blob/master/build/heroes.json), retrieved on 2026-09-26. The unmodified snapshot is in `data/heroes-source.json`.

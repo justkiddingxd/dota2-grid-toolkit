@@ -1,4 +1,5 @@
 import { DOTA } from './dota-rendering.mjs';
+import { compactCategoryRows } from './export-rows.mjs';
 
 const WIDTH = 1193,
   HEIGHT = 593,
@@ -87,7 +88,8 @@ function importDota(data, index = 0) {
     throw new Error('Ожидается Dota JSON версии 3 с массивом configs.');
   if (data.configs.length > MAX_CONFIGS)
     throw new Error('В файле слишком много сеток (максимум 100).');
-  for (const config of data.configs) {
+  const normalized = clone(data), repairs = [];
+  for (const [configIndex, config] of normalized.configs.entries()) {
     if (
       !config ||
       typeof config.config_name !== 'string' ||
@@ -97,32 +99,38 @@ function importDota(data, index = 0) {
       throw new Error('У сетки должны быть config_name и categories.');
     if (config.categories.length > MAX_ENTITIES)
       throw new Error('В одной сетке допускается до 10 000 объектов.');
-    for (const c of config.categories) {
+    for (const [categoryIndex, c] of config.categories.entries()) {
       if (
         !c ||
         typeof c.category_name !== 'string' ||
         c.category_name.length > 5000 ||
         !['x_position', 'y_position', 'width', 'height'].every((k) => finite(c[k])) ||
-        c.width <= 0 ||
-        c.height <= 0 ||
         Math.abs(c.x_position) > 100000 ||
         Math.abs(c.y_position) > 100000 ||
-        c.width > 100000 ||
-        c.height > 100000 ||
+        Math.abs(c.width) > 100000 ||
+        Math.abs(c.height) > 100000 ||
         !Array.isArray(c.hero_ids) ||
         c.hero_ids.length > 1000 ||
         c.hero_ids.some((id) => !Number.isSafeInteger(id) || id <= 0)
       )
         throw new Error(
-          'В файле есть некорректная категория: проверьте координаты, размеры и ID героев.'
+          `Сетка «${config.config_name}», категория ${categoryIndex + 1}: координаты и размеры должны быть конечными числами, hero_ids — массивом положительных целых ID.`
         );
+      if (c.width <= 0 || c.height <= 0) {
+        repairs.push({ configIndex, categoryIndex, width: c.width, height: c.height });
+        // Legacy tools wrote zero/negative boxes even though text is rendered
+        // at a fixed font size. Recover boxes, never rescale artwork positions.
+        if (c.width <= 0) c.width = c.hero_ids.length ? Math.abs(c.width) || 340 : 30;
+        if (c.height <= 0) c.height = c.hero_ids.length ? Math.abs(c.height) || 195 : 30;
+      }
     }
   }
   if (!Number.isInteger(index) || index < 0 || index >= data.configs.length)
     throw new Error('Сетка не найдена.');
-  const config = data.configs[index],
+  const config = normalized.configs[index],
     doc = createDocument(config.config_name);
-  doc.source = clone(data);
+  doc.source = normalized;
+  if (repairs.length) doc.importRepairs = repairs;
   doc.configIndex = index;
   doc.entities = config.categories.map((c) =>
     entity(doc, {
@@ -144,20 +152,16 @@ function importDota(data, index = 0) {
   );
   return doc;
 }
-function exportDota(doc) {
-  assertCategoryLimit(doc);
-  const result = clone(doc.source);
-  const states = { ...(doc.configDrafts || {}), [doc.configIndex]: doc };
-  for (const [index, state] of Object.entries(states)) {
+function categoryEntries(state) {
     const hidden = new Set(state.layers.filter((l) => !l.visible).map((l) => l.id));
-    const categories = state.entities
+    return state.entities
       .filter((e) => !hidden.has(e.layer))
       .flatMap((item) =>
         item.rowText && !normalizeAngle(item.rotation || 0)
           ? [{ ...item, text: item.rowText }]
           : textGlyphs(item)
       )
-      .map((e) => ({
+      .map((e) => ({ layer: e.layer, entityId: e.id, category: {
         ...(e.extra || {}),
         category_name: e.type === 'heroes' ? e.name : e.text,
         x_position: +e.x.toFixed(6),
@@ -165,7 +169,16 @@ function exportDota(doc) {
         width: +e.w.toFixed(6),
         height: +e.h.toFixed(6),
         hero_ids: e.type === 'heroes' ? [...e.heroIds] : []
-      }));
+      } }));
+}
+function exportDota(doc, measure = null, { compactRows = true } = {}) {
+  if (!compactRows) measure = null;
+  assertCategoryLimit(doc);
+  const result = clone(doc.source);
+  const states = { ...(doc.configDrafts || {}), [doc.configIndex]: doc };
+  for (const [index, state] of Object.entries(states)) {
+    const entries = categoryEntries(state);
+    const categories = compactCategoryRows(entries, measure);
     if (categories.length > MAX_ENTITIES)
       throw new Error(
         'После разделения текста получается больше 10 000 категорий. Уменьши количество символов.'
@@ -174,12 +187,17 @@ function exportDota(doc) {
   }
   // Dota does not store an editor canvas size. Only category positions and hero
   // dimensions are exported; every category without heroes has a 30px box.
-  for (const config of result.configs)
+  for (const [index, config] of result.configs.entries()) {
+    if (measure && !Object.hasOwn(states, index))
+      config.categories = compactCategoryRows(config.categories.map((category) => ({
+        category, layer: category.hero_ids.length ? 'heroes' : 'decor'
+      })), measure);
     for (const category of config.categories)
       if (!category.hero_ids.length) {
         category.width = 30;
         category.height = 30;
       }
+  }
   return result;
 }
 function categoryCount(state) {
@@ -239,11 +257,51 @@ function switchConfig(doc, index) {
   if (doc.fileName !== undefined) next.fileName = doc.fileName;
   return next;
 }
+function gridDraft(state) {
+  return clone({
+    name: state.name, nextId: state.nextId, entities: state.entities,
+    layers: state.layers, canvas: canvasSize(state),
+    ...(state.reference ? { reference: state.reference } : {})
+  });
+}
+function appendConfigs(doc, documents) {
+  const incoming = documents.map((data) => importProject(data));
+  if (doc.source.configs.length + incoming.reduce((n, item) => n + item.source.configs.length, 0) > MAX_CONFIGS)
+    throw new Error('В одном файле допускается до 100 сеток. Открой файлы отдельно.');
+  const next = clone(doc);
+  const names = new Set(configurations(next).map((config) => config.name));
+  next.configDrafts ||= {};
+  for (const imported of incoming) {
+    // Keep non-conflicting file metadata; the current file wins conflicts.
+    next.source = { ...imported.source, ...next.source };
+    for (const [index, config] of imported.source.configs.entries()) {
+      const state = index === imported.configIndex ? imported : imported.configDrafts?.[index];
+      const base = state ? state.name : config.config_name;
+      let name = base, suffix = 2;
+      while (names.has(name)) name = `${base.slice(0, 190)} (${suffix++})`;
+      names.add(name);
+      const destination = next.source.configs.length;
+      next.source.configs.push({ ...clone(config), config_name: name });
+      if (state) next.configDrafts[destination] = { ...gridDraft(state), name };
+    }
+  }
+  return next;
+}
 function configurations(doc) {
   return doc.source.configs.map((config, index) => {
     const state = index === doc.configIndex ? doc : doc.configDrafts?.[index];
     return { index, name: state ? state.name : config.config_name };
   });
+}
+function renameConfig(doc, index, value) {
+  if (!Number.isInteger(index) || !doc.source.configs[index]) throw new Error('Сетка не найдена.');
+  const name = String(value).trim();
+  if (!name || name.length > 200) throw new Error('Название должно содержать от 1 до 200 символов.');
+  const next = clone(doc);
+  next.source.configs[index].config_name = name;
+  if (index === next.configIndex) next.name = name;
+  if (next.configDrafts?.[index]) next.configDrafts[index].name = name;
+  return next;
 }
 function addConfig(doc, name = 'Новая сетка', kind = 'blank') {
   if (doc.source.configs.length >= MAX_CONFIGS)
@@ -287,7 +345,7 @@ function importProject(data) {
     data.nextId < 1
   )
     throw new Error('Не удалось прочитать проект Grid Studio.');
-  importDota(data.source, data.configIndex);
+  const importedSource = importDota(data.source, data.configIndex);
   if (data.canvas !== undefined) validateCanvas(data.canvas);
   const ids = new Set(),
     baseLayers = new Set(['background', 'heroes', 'decor']);
@@ -395,6 +453,8 @@ function importProject(data) {
     ids.add(e.id);
   }
   const copy = clone(data);
+  copy.source = importedSource.source;
+  if (importedSource.importRepairs) copy.importRepairs = importedSource.importRepairs;
   if (copy.configDrafts !== undefined) {
     if (
       !copy.configDrafts ||
@@ -410,7 +470,7 @@ function importProject(data) {
         typeof draft !== 'object'
       )
         throw new Error('Некорректный черновик сетки.');
-      importProject({
+      const restored = importProject({
         ...draft,
         app: 'dota-grid-studio',
         schema: 1,
@@ -418,9 +478,24 @@ function importProject(data) {
         configIndex: Number(index),
         configDrafts: undefined
       });
+      copy.configDrafts[index] = gridDraft(restored);
     }
   }
   importDota(exportDota(copy), copy.configIndex);
+  // Older autosaves may contain rows created by automatic grouping. Restore
+  // their independent glyphs once, retaining IDs, geometry and layer metadata.
+  copy.entities = copy.entities.flatMap((item) => {
+    if (!item.rowGlyphs) return [item];
+    return textGlyphs(item).map((glyph, index) => {
+      const clean = clone(glyph);
+      delete clean.rowGlyphs;
+      delete clean.rowText;
+      delete clean.textMetrics;
+      return index ? entity(copy, clean) : clean;
+    });
+  });
+  if (copy.entities.length > MAX_ENTITIES)
+    throw new Error('После восстановления символов получается больше 10 000 объектов.');
   return copy;
 }
 function visualHeight(e) {
@@ -630,14 +705,16 @@ function outside(e, size = { w: WIDTH, h: HEIGHT }) {
   const b = bounds([e], true);
   return b.x < 0 || b.y < 0 || b.x + b.w > size.w || b.y + b.h > size.h;
 }
-function warnings(doc) {
+function warnings(doc, exportedCount = categoryCount(doc)) {
   const visible = doc.entities.filter((e) => doc.layers.find((l) => l.id === e.layer)?.visible);
   const issues = [];
   const count = visible.filter((e) => outside(e, canvasSize(doc))).length;
   if (count) issues.push(`${count} объект(а) выходят за границы холста.`);
   if (visible.some((e) => /[║═]/u.test(e.text)))
     issues.push('Символы ║ и ═ могут отображаться в Dota некорректно.');
-  if (categoryCount(doc) > 2000)
+  if (visible.some((e) => /[\u2800-\u28ff\u3040-\u30ff]/u.test(e.text)))
+    issues.push('Брайль и японские символы сохранены без замены. Проверь их в игре: отображение зависит от шрифтов Dota.');
+  if (exportedCount > 2000)
     issues.push('Более 2 000 категорий: возможны лаги и вылет Dota 2.');
   if (doc.layers.some((l) => !l.visible && doc.entities.some((e) => e.layer === l.id)))
     issues.push('Скрытые слои не попадут в Dota JSON. В проекте они сохранятся.');
@@ -879,6 +956,7 @@ export default {
   canvasSize,
   validateCanvas,
   categoryCount,
+  categoryEntries,
   clone,
   clamp,
   createDocument,
@@ -891,7 +969,9 @@ export default {
   importProject,
   switchConfig,
   configurations,
+  renameConfig,
   addConfig,
+  appendConfigs,
   bounds,
   visualHeight,
   outside,

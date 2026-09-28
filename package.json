@@ -1,23 +1,34 @@
 {
   "name": "dota2-grid-studio",
-  "version": "1.0.0",
+  "version": "1.4.0",
   "private": true,
   "description": "A unified React workspace for Dota 2 hero grids, symbol art and image conversion",
   "scripts": {
-    "dev": "vite --host 127.0.0.1 --port 4173 --strictPort",
+    "dev": "node --env-file-if-exists=.env.catalog.local scripts/dev.mjs",
     "start": "npm run dev",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
-    "check": "node --check scripts/core.mjs && node --check scripts/converter.mjs && node --check scripts/drawing.mjs && node --check scripts/edit-operations.mjs && node --check scripts/reference-image.mjs && node --check scripts/symbol-tools.mjs && node --check scripts/app.mjs",
-    "test": "node --test tests/*.test.cjs"
+    "check": "node --check scripts/disclosure-motion.mjs && node --check scripts/core.mjs && node --check scripts/converter.mjs && node --check scripts/drawing.mjs && node --check scripts/hero-order.mjs && node --check scripts/edit-operations.mjs && node --check scripts/reference-image.mjs && node --check scripts/symbol-tools.mjs && node --check scripts/zoom.mjs && node --check scripts/category-optimization.mjs && node --check scripts/export-rows.mjs && node --check scripts/app.mjs && node --check scripts/project-storage.mjs && node --check scripts/telegram-release.mjs && node --check scripts/release-format.mjs && node --check scripts/release-check.mjs && node --check scripts/catalog-document.mjs && node --check server/catalog-store.mjs && node --check server/catalog-api.mjs && node --check server/catalog-telegram.mjs && node --check server/catalog-telegram-store.mjs && node --check server/catalog-preview.mjs && node --check scripts/catalog-rendering.mjs && node --check server/accounts.mjs && node --check scripts/workspaces.mjs && node --check server/telegram-profile.mjs && node --check scripts/workspace-preview.mjs && node --check scripts/save-status.mjs && node --check server/catalog-captcha.mjs && node --check scripts/steam-profile.mjs && node --check scripts/steam-folder.mjs && node --check server/steam-profile.mjs",
+    "test": "node --test tests/*.test.cjs",
+    "release:check": "node scripts/release-check.mjs",
+    "telegram:preview": "node scripts/telegram-release.mjs",
+    "telegram:test": "node scripts/telegram-release.mjs releases/test.json",
+    "catalog:serve": "node --env-file-if-exists=.env.catalog.local server/catalog-api.mjs",
+    "catalog:setup": "node scripts/catalog-setup.mjs",
+    "catalog:bot": "node --env-file-if-exists=.env.catalog.local server/catalog-telegram.mjs"
   },
   "license": "MIT",
   "dependencies": {
+    "@napi-rs/canvas": "1.0.9",
+    "altcha": "3.2.3",
+    "altcha-lib": "2.5.0",
+    "puregram": "3.10.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "6.1.1",
+    "fake-indexeddb": "6.2.5",
     "vite": "8.3.1"
   },
   "engines": {

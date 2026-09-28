@@ -1,0 +1,371 @@
+@font-face {
+  font-family: 'SF Pro Display'; font-style: normal; font-weight: 400; font-display: swap;
+  src: local('SF Pro Display Regular'), url('https://fonts.cdnfonts.com/s/59278/SFPRODISPLAYREGULAR.woff') format('woff');
+}
+@font-face {
+  font-family: 'SF Pro Display'; font-style: normal; font-weight: 500; font-display: swap;
+  src: local('SF Pro Display Medium'), url('https://fonts.cdnfonts.com/s/59278/SFPRODISPLAYMEDIUM.woff') format('woff');
+}
+@font-face {
+  font-family: 'SF Pro Display'; font-style: normal; font-weight: 700; font-display: swap;
+  src: local('SF Pro Display Bold'), url('https://fonts.cdnfonts.com/s/59278/SFPRODISPLAYBOLD.woff') format('woff');
+}
+
+:root {
+  font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #efeaf5; background: #15141a; color-scheme: dark; font-synthesis: none;
+  --lp-bg: #15141a; --lp-panel: #211e29; --lp-raised: #2c2935; --lp-line: #383340;
+  --lp-ink: #efeaf5; --lp-muted: #afa7bf; --lp-accent: #c4b5ed; --lp-accent-ink: #231b35;
+  --lp-ease: cubic-bezier(.16, 1, .3, 1); --gallery-height: 76px;
+  scrollbar-color: #655b78 #15141a; scrollbar-width: thin;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+button, a { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+button { font: inherit; color: inherit; cursor: pointer; }
+a { color: inherit; text-decoration: none; text-underline-offset: 5px; }
+button, a { outline-offset: 5px; }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--lp-accent); }
+button:disabled { opacity: .4; cursor: default; }
+svg { flex-shrink: 0; display: block; }
+::selection { background: #c4b5ed; color: #231b35; }
+::-webkit-scrollbar { width: 7px; height: 4px; }
+::-webkit-scrollbar-track { background: #15141a; }
+::-webkit-scrollbar-thumb { background: #655b78; border-radius: 8px; }
+
+.gallery-controls {
+  min-height: var(--gallery-height); padding: 12px 24px; display: flex; align-items: center;
+  gap: 24px; background: #0e0d12; border-bottom: 1px solid #383340; position: relative; z-index: 5;
+}
+.gallery-heading { display: flex; align-items: center; gap: 13px; white-space: nowrap; font-size: 13px; }
+.gallery-heading > span { color: var(--lp-muted); }
+.gallery-heading strong { font-weight: 500; font-variant-numeric: tabular-nums; }
+.gallery-heading > a { color: var(--lp-muted); padding: 9px; }
+.gallery-heading > a:hover { color: var(--lp-ink); }
+.variant-list { display: flex; gap: 4px; overflow: auto; flex: 1; padding: 5px 3px; scrollbar-width: thin; }
+.variant-list button {
+  display: flex; align-items: center; gap: 7px; background: none; border: 0; border-radius: 6px;
+  min-height: 36px; padding: 0 10px; white-space: nowrap; font-size: 12px; color: var(--lp-muted);
+  transition: color 160ms, background 160ms;
+}
+.variant-list button > span { font-size: 10px; font-variant-numeric: tabular-nums; opacity: .7; }
+.variant-list button:hover { color: var(--lp-ink); background: #211e29; }
+.variant-list button[aria-pressed='true'] { color: var(--lp-accent-ink); background: var(--lp-accent); }
+.gallery-arrows { display: flex; gap: 4px; }
+.gallery-arrows button { width: 30px; height: 34px; padding: 5px; border: 0; border-radius: 6px; background: #211e29; }
+.gallery-arrows button:first-child svg { transform: rotate(180deg); }
+.gallery-arrows button:hover { background: #383340; }
+.gallery-clean { --gallery-height: 0px; }
+
+.landing-page {
+  min-height: calc(100svh - var(--gallery-height)); display: flex; flex-direction: column;
+  isolation: isolate; overflow: clip; position: relative; background: var(--lp-bg);
+}
+.landing-nav {
+  margin: 0 auto; width: 100%; max-width: 1680px; padding: 26px 5%;
+  display: flex; align-items: center; justify-content: space-between; gap: 24px; z-index: 3;
+}
+.landing-brand { display: inline-flex; align-items: center; gap: 12px; white-space: nowrap; }
+.landing-brand > svg { width: 30px; height: 30px; stroke: var(--lp-accent); stroke-width: 2.4; }
+.landing-brand > span { font-size: 18px; font-weight: 700; letter-spacing: -.015em; }
+.landing-brand > span > span { font-weight: 400; }
+.landing-main {
+  width: 100%; max-width: 1680px; margin: auto; padding: 38px 5% 52px; flex: 1;
+  min-height: 490px; display: grid; grid-template-columns: minmax(330px, .82fr) minmax(0, 1.18fr);
+  gap: 40px; align-items: center; position: relative;
+}
+.landing-copy { position: relative; z-index: 2; max-width: 455px; }
+.landing-copy h1 { margin: 0; font-size: clamp(54px, 5.25vw, 84px); font-weight: 700; line-height: 1.02; letter-spacing: -.035em; text-wrap: balance; }
+.landing-description { margin: 27px 0 0; max-width: 41ch; font-size: 17px; line-height: 1.55; color: var(--lp-muted); text-wrap: pretty; }
+.landing-actions { display: flex; align-items: stretch; flex-wrap: wrap; gap: 12px; margin-top: 31px; }
+.landing-primary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 12px; background: var(--lp-accent);
+  color: var(--lp-accent-ink); border-radius: 9px; min-height: 52px; padding: 0 20px; font-weight: 500; font-size: 15px; white-space: nowrap;
+  transition: background 180ms, transform 180ms var(--lp-ease), box-shadow 180ms;
+}
+.landing-primary:hover { background: #d4c7f6; transform: translateY(-2px); box-shadow: 0 9px 24px #08050e36; }
+.landing-primary:active { transform: translateY(0); }
+.landing-catalog { border: 1px solid #494152; background: #211e29; padding: 0 20px; min-height: 52px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; gap: 12px; font-size: 15px; font-weight: 500; color: var(--lp-ink); white-space: nowrap; transition: background 180ms, border-color 180ms; }
+.landing-catalog:hover, .landing-catalog[aria-expanded='true'] { background: #2c2935; border-color: #81728f; }
+.catalog-status { flex-basis: 100%; margin: 0; padding: 10px 13px; background: var(--lp-panel); border-radius: 7px; font-size: 13px; line-height: 1.5; max-width: 42ch; animation: status-reveal 180ms var(--lp-ease); }
+@keyframes status-reveal { from { opacity: 0; transform: translateY(-4px); } }
+.landing-authors { display: flex; align-items: center; flex-wrap: nowrap; gap: 9px; margin-top: 32px; font-size: 12px; color: var(--lp-muted); white-space: nowrap; }
+.author-credit { display: inline-flex; align-items: center; gap: 5px; }
+.landing-author-links { display: flex; align-items: center; gap: 7px; flex-wrap: nowrap; }
+.landing-author-links a { display: inline-flex; align-items: center; gap: 7px; background: var(--lp-panel); padding: 4px 11px 4px 4px; border-radius: 24px; color: var(--lp-ink); transition: background 160ms, transform 160ms; }
+.landing-author-links a:hover { background: #383340; transform: translateY(-2px); }
+.landing-author-links img { width: 25px; height: 25px; border-radius: 50%; object-fit: cover; }
+.landing-footer { display: flex; align-items: center; justify-content: space-between; gap: 24px; width: 100%; max-width: 1680px; margin: 0 auto; padding: 15px 5% 24px; color: var(--lp-muted); font-size: 12px; z-index: 2; }
+.landing-footer > a { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; transition: color 160ms; }
+.landing-footer > a:hover { color: var(--lp-ink); }
+.landing-footer > a svg { width: 13px; height: 13px; }
+.editor-visual { position: relative; min-width: 0; width: 100%; perspective: 1300px; }
+.editor-artwork {
+  padding: 0; display: block; border: 0; background: none; width: 100%; position: relative;
+  text-align: left; transform-style: preserve-3d; animation: image-arrive 800ms var(--lp-ease) both;
+  transition: transform 650ms var(--lp-ease), filter 500ms var(--lp-ease);
+}
+.editor-shot { display: block; width: 100%; height: auto; }
+.image-pieces { display: block; position: relative; width: 100%; aspect-ratio: 1280 / 675; }
+.image-piece { position: absolute; inset: 0; background-size: 100% 100%; background-repeat: no-repeat; transition: transform 650ms var(--lp-ease); }
+.visual-ground { display: none; position: absolute; pointer-events: none; }
+.visual-caption { position: relative; display: block; margin-top: 28px; font-size: 12px; color: var(--lp-muted); }
+@keyframes image-arrive { from { opacity: .45; filter: brightness(.8); } to { opacity: 1; filter: brightness(1); } }
+
+/* A large edge-crossing viewport, anchored to the dark editor surround. */
+.landing-edge .landing-main { grid-template-columns: .78fr 1.22fr; gap: 50px; }
+.visual-edge { width: 139%; margin-left: 0; }
+.visual-edge .editor-artwork { transform: rotateY(-15deg) rotateZ(3deg); transform-origin: left center; box-shadow: -12px 28px 65px #08060d8c; border-radius: 12px; overflow: hidden; }
+.visual-edge .editor-artwork:hover { transform: rotateY(-9deg) rotateZ(1deg); }
+.visual-edge .visual-ground { display: block; inset: -9% 13% -10% 14%; background: #211e29; border-radius: 90px 0 0 18px; transform: rotate(-7deg); z-index: -1; }
+
+/* Extract the real canvas, inspector and tool rail from the supplied image. */
+.landing-panels .landing-nav { padding-bottom: 12px; }
+.landing-panels .landing-main { gap: 20px; grid-template-columns: .77fr 1.23fr; }
+.landing-panels .landing-copy h1 { font-size: clamp(52px, 4.8vw, 76px); }
+.visual-panels { width: 111%; margin-left: 0; }
+.visual-panels .image-pieces { aspect-ratio: 1.63; }
+.visual-panels .image-piece { background-size: 100% 100%; }
+.visual-panels .piece-one { clip-path: polygon(6% 13%,82% 13%,82% 98%,6% 98%); transform: translate(-1%, 4%) rotate(-4deg); }
+.visual-panels .piece-two { clip-path: polygon(83% 13%,99% 13%,99% 98%,83% 98%); transform: translate(-1%, -2%) rotate(5deg); transform-origin: right center; }
+.visual-panels .piece-three { clip-path: polygon(1.5% 36%,4.5% 36%,4.5% 77%,1.5% 77%); transform: translate(1%, 0) scale(1.3); transform-origin: left center; }
+.visual-panels .editor-artwork:hover .piece-one { transform: translate(-1%, 1%) rotate(-1deg); }
+.visual-panels .editor-artwork:hover .piece-two { transform: translate(0%, 1%) rotate(1deg); }
+.visual-panels .visual-caption { margin-left: 8%; margin-top: 45px; }
+
+/* A tall, recessed opening reveals the artwork inside the editor. */
+.landing-portal { background: #19171f; }
+.landing-portal .landing-main { grid-template-columns: .95fr 1.05fr; gap: 7%; padding-top: 12px; }
+.visual-portal { max-width: 690px; aspect-ratio: 1.06; align-self: end; }
+.visual-portal .visual-ground { display: block; inset: -14px -14px 16px; background: #2c2738; border-radius: 48% 48% 8px 8px; }
+.visual-portal .editor-artwork { height: 100%; border-radius: 48% 48% 8px 8px; overflow: hidden; background: #111016; transform: rotate(-3deg); }
+.visual-portal .editor-shot { width: 155%; max-width: none; height: 100%; object-fit: cover; object-position: center; margin-left: -32%; }
+.visual-portal .editor-artwork:hover { transform: rotate(0deg); }
+.landing-portal .landing-copy h1 { font-weight: 500; }
+
+/* The inspector folds out from the canvas, like an opened workspace. */
+.landing-fold .landing-main { grid-template-columns: .85fr 1.15fr; }
+.landing-fold .landing-copy h1 { font-size: clamp(53px, 5.6vw, 88px); }
+.visual-fold { width: 125%; margin-left: -3%; }
+.visual-fold .editor-artwork { transform: rotateZ(-5deg) rotateY(-8deg); }
+.visual-fold .image-pieces { transform-style: preserve-3d; }
+.visual-fold .piece-one { clip-path: polygon(0 0,82% 0,82% 100%,0 100%); transform: rotateY(12deg); transform-origin: 82% center; }
+.visual-fold .piece-two { clip-path: polygon(82% 0,100% 0,100% 100%,82% 100%); transform: rotateY(-28deg); transform-origin: 82% center; }
+.visual-fold .piece-three { display: none; }
+.visual-fold .editor-artwork:hover { transform: rotateZ(-2deg) rotateY(0deg); }
+.visual-fold .editor-artwork:hover .piece-two { transform: rotateY(-8deg); }
+.visual-fold .visual-caption { margin-left: 12px; margin-top: 50px; }
+
+/* A machined screen, layered deck and the original mark share one perspective. */
+.landing-stage .landing-main { grid-template-columns: .86fr 1.14fr; gap: 52px; padding-top: 18px; padding-bottom: 24px; }
+.landing-stage .landing-copy { container-type: inline-size; }
+.landing-stage .landing-copy h1 { font-size: clamp(36px, 13cqw, 74px) !important; }
+.landing-stage .heading-line { white-space: nowrap; }
+.visual-stage { width: 116%; margin: 10px 0 0 -2%; padding: 30px 0 66px; perspective: none; isolation: isolate; container-type: inline-size; }
+.stage-camera { perspective: 220cqw; perspective-origin: 50% 50%; }
+.stage-world { position: relative; width: 100%; aspect-ratio: 1280 / 675; transform-style: preserve-3d; transform-origin: 50% 100%; transform: rotateZ(1.5deg) rotateX(-10deg) rotateY(-12deg); }
+.stage-architecture { position: absolute; width: 66%; right: -1%; top: -24%; transform: translateZ(-13cqw); }
+.stage-architecture svg { width: 100%; overflow: visible; }
+.architecture-side { stroke: #1b1821; stroke-width: 34px; }
+.architecture-face { stroke: #38303f; stroke-width: 24px; }
+.architecture-edge { stroke: #675676; stroke-width: 1px; opacity: .7; }
+.stage-platform { position: absolute; left: -6%; width: 112%; top: 100%; height: 0; transform-style: preserve-3d; }
+.platform-face { position: absolute; top: 0; backface-visibility: hidden; }
+.platform-top { width: 100%; height: 31.25cqw; transform-origin: 50% 0; transform: translateZ(-12.5cqw) rotateX(90deg); background: linear-gradient(160deg, #453a50, #2c2534 70%); box-shadow: 0 1.3cqw 2.5cqw #08060d66; }
+.platform-top::after { content: ''; position: absolute; inset: 1.3cqw; border: 1px solid #c4b5ed29; }
+.platform-front { width: 100%; height: 1.875cqw; transform: translateZ(18.75cqw); background: linear-gradient(#4a3f55, #211e29); }
+.platform-left { left: 0; width: 31.25cqw; height: 1.875cqw; transform-origin: 0 50%; transform: translateZ(-12.5cqw) rotateY(-90deg); background: #302837; }
+.platform-right { left: 100%; width: 31.25cqw; height: 1.875cqw; transform-origin: 0 50%; transform: translateZ(18.75cqw) rotateY(90deg); background: #211b28; }
+.stage-contact-shadow { position: absolute; left: -.5%; width: 101%; top: 100%; height: 3cqw; transform-origin: 50% 0; transform: translateY(-.05cqw) translateZ(-1cqw) rotateX(90deg); background: #09070dd9; filter: blur(.45cqw); border-radius: 50%; }
+.stage-screen { position: absolute; inset: 0; padding: 5px 5px 9px; border-radius: 10px 10px 3px 3px; background: linear-gradient(145deg, #80718f, #332c3e 26%, #211e29 64%, #65576f); transform-origin: 50% 100%; transform: rotateX(14deg); }
+.stage-screen .editor-shot { width: 100%; height: 100%; object-fit: fill; border-radius: 6px 6px 0 0; user-select: none; }
+.landing-stage .landing-footer { padding-top: 30px; }
+
+/* The image becomes a selected object: exact handles, no invented tool UI. */
+.landing-selection .landing-main { grid-template-columns: .83fr 1.17fr; gap: 7%; }
+.landing-selection .landing-copy h1 { font-size: clamp(53px, 4.9vw, 78px); }
+.visual-selection { width: 111%; margin-left: -1%; }
+.visual-selection .editor-artwork { transform: rotate(-5deg); outline: 1px solid #a28fc8; outline-offset: 8px; }
+.selection-handles { position: absolute; inset: -13px; pointer-events: none; }
+.selection-handles i { position: absolute; width: 9px; height: 9px; background: #c4b5ed; }
+.selection-handles i:nth-child(1) { left: 0; top: 0; }
+.selection-handles i:nth-child(2) { right: 0; top: 0; }
+.selection-handles i:nth-child(3) { left: 0; bottom: 0; }
+.selection-handles i:nth-child(4) { right: 0; bottom: 0; }
+.selection-handles b { position: absolute; height: 26px; left: 50%; top: -26px; width: 1px; background: #a28fc8; }
+.selection-handles b::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: #c4b5ed; position: absolute; top: -5px; left: -4px; }
+.visual-selection .editor-artwork:hover { transform: rotate(0deg); }
+.visual-selection .visual-caption { margin-top: 58px; margin-left: 12px; }
+.landing-selection .landing-primary { border-radius: 6px; }
+
+/* A full-height image plane enters from the right; the left stays quiet. */
+.landing-panorama .landing-main { position: static; grid-template-columns: .84fr 1.16fr; gap: 0; }
+.landing-panorama .landing-copy { max-width: 390px; padding-top: 12px; padding-bottom: 12px; }
+.landing-panorama .landing-copy h1 { font-size: clamp(56px, 5.6vw, 88px); }
+.visual-panorama { position: absolute; width: 57%; top: 105px; bottom: 0; right: 0; }
+.visual-panorama .editor-artwork { height: 100%; overflow: hidden; clip-path: polygon(12% 0,100% 0,100% 100%,0 100%); background: #111016; }
+.visual-panorama .editor-shot { height: 100%; width: 160%; object-fit: cover; max-width: none; object-position: left center; transform: translateX(-16%); transition: transform 900ms var(--lp-ease); }
+.visual-panorama .editor-artwork:hover .editor-shot { transform: translateX(-20%); }
+.landing-panorama .landing-footer { width: 41%; margin-left: 0; padding-left: 5%; padding-right: 0; }
+
+/* Focus's selected-tool colour becomes one deliberate, solid surface. */
+.landing-surface .landing-main { grid-template-columns: .84fr 1.16fr; gap: 0; padding-top: 10px; padding-bottom: 28px; }
+.landing-surface .landing-copy { color: #231b35; background: #c4b5ed; padding: 42px 34px 36px; max-width: 480px; border-radius: 16px 16px 64px 16px; }
+.landing-surface .landing-copy h1 { font-size: clamp(49px, 4.4vw, 69px); }
+.landing-surface .landing-description, .landing-surface .landing-authors, .landing-surface .landing-catalog { color: #4a3e63; }
+.landing-surface .landing-primary { background: #231b35; color: #efeaf5; }
+.landing-surface .landing-primary:hover { background: #352847; }
+.landing-surface .landing-catalog:hover { color: #231b35; }
+.landing-surface .landing-author-links a { background: #b29edc; color: #231b35; }
+.landing-surface .landing-author-links a:hover { background: #a88bd6; }
+.landing-surface .catalog-status { background: #b29edc; }
+.landing-surface .landing-copy :focus-visible { outline-color: #231b35; }
+.landing-surface .landing-authors { margin-top: 30px; }
+.visual-surface { width: 119%; margin-left: -3%; z-index: 2; }
+.visual-surface .editor-artwork { transform: rotate(5deg); box-shadow: -15px 25px 65px #09070d88; border-radius: 12px; overflow: hidden; }
+.visual-surface .editor-artwork:hover { transform: rotate(2deg); }
+
+/* Three real slices align when the viewer engages with the screenshot. */
+.landing-ribbon .landing-main { grid-template-columns: .84fr 1.16fr; gap: 6%; }
+.landing-ribbon .landing-copy h1 { font-weight: 500; font-size: clamp(53px, 5vw, 80px); }
+.visual-ribbon { width: 119%; margin-left: -5%; }
+.visual-ribbon .editor-artwork { transform: rotate(-4deg); }
+.visual-ribbon .piece-one { clip-path: inset(0 0 73% 0 round 10px); transform: translate(2%, -16%); }
+.visual-ribbon .piece-two { clip-path: inset(27% 0 28% 0 round 10px); transform: translate(-2%, 0); }
+.visual-ribbon .piece-three { clip-path: inset(72% 0 0 0 round 10px); transform: translate(2%, 15%); }
+.visual-ribbon .editor-artwork:hover .image-piece { transform: none; }
+.visual-ribbon .editor-artwork:hover { transform: rotate(0deg); }
+.landing-ribbon .landing-authors { margin-top: 50px; }
+
+/* An oversized crop gives the supplied artwork a poster-sized presence. */
+.landing-closeup .landing-main { display: block; padding-top: 0; padding-bottom: 38px; }
+.landing-closeup .landing-copy { position: relative; max-width: none; padding-top: 4px; pointer-events: none; }
+.landing-closeup .landing-copy h1 { font-size: clamp(78px, 7.5vw, 96px); margin-bottom: 35px; position: relative; z-index: 3; font-weight: 500; }
+.landing-closeup .landing-description { max-width: 33ch; width: 35%; margin-top: 0; }
+.landing-closeup .landing-actions { max-width: 34%; }
+.landing-closeup .landing-authors { width: 34%; }
+.landing-closeup .landing-copy a, .landing-closeup .landing-copy button { pointer-events: auto; }
+.visual-closeup { position: absolute; left: 43%; width: 66%; top: 30px; bottom: 0; z-index: 1; }
+.visual-closeup .editor-artwork { height: 100%; overflow: hidden; border-radius: 100px 0 0 0; mask-image: linear-gradient(to bottom, #000 89%, transparent); }
+.visual-closeup .editor-shot { height: 100%; width: 100%; object-fit: cover; object-position: 42% 50%; transform: scale(1.04); transition: transform 700ms var(--lp-ease); }
+.visual-closeup .editor-artwork:hover .editor-shot { transform: scale(1); }
+.landing-closeup .landing-footer { padding-top: 26px; }
+
+@media (min-width: 1680px) {
+  .landing-main { padding-top: 70px; padding-bottom: 80px; }
+  .landing-copy h1 { font-size: 90px; }
+  .landing-description { font-size: 18px; }
+  .landing-authors { margin-top: 48px; }
+  .visual-panorama { width: 56%; }
+}
+@media (max-width: 1250px) {
+  .gallery-controls { gap: 12px; padding-left: 16px; padding-right: 16px; }
+  .gallery-heading { gap: 9px; }
+  .gallery-heading > span { display: none; }
+  .variant-list { gap: 2px; }
+  .variant-list button { padding: 0 8px; gap: 5px; }
+  .landing-main { gap: 28px; }
+  .landing-description { font-size: 16px; }
+  .landing-copy h1 { font-size: 58px; }
+  .landing-surface .landing-copy { padding: 32px 25px; }
+  .landing-surface .landing-copy h1 { font-size: 48px; }
+  .landing-fold .landing-copy h1 { font-size: 59px; }
+}
+@media (max-width: 960px) {
+  .gallery-controls { flex-wrap: wrap; gap: 0 16px; padding: 8px 16px; }
+  .gallery-heading { order: 0; flex: 1; }
+  .gallery-heading > span { display: inline; }
+  .gallery-arrows { order: 1; }
+  .variant-list { order: 2; flex-basis: 100%; }
+  :root { --gallery-height: 96px; }
+  .landing-nav { padding: 22px 5%; }
+  .landing-main { grid-template-columns: minmax(300px, .95fr) 1.05fr !important; gap: 24px !important; min-height: 540px; }
+  .landing-copy h1 { font-size: 53px !important; }
+  .landing-description { font-size: 15px; }
+  .landing-actions { gap: 8px; }
+  .landing-primary { font-size: 13px; padding: 0 13px; gap: 8px; }
+  .landing-catalog { font-size: 13px; padding: 0 13px; gap: 8px; }
+  .landing-authors { margin-top: 28px; font-size: 11px; gap: 7px; }
+  .landing-author-links { gap: 5px; }
+  .landing-author-links a { gap: 5px; padding-right: 8px; }
+  .landing-author-links img { width: 22px; height: 22px; }
+  .visual-portal { aspect-ratio: .83; }
+  .visual-panorama { width: 53%; top: 110px; }
+  .landing-panorama .landing-copy { max-width: 315px; }
+  .landing-panorama .landing-description { max-width: 29ch; }
+  .landing-closeup .landing-copy h1 { font-size: 90px !important; }
+  .landing-closeup .landing-description, .landing-closeup .landing-actions, .landing-closeup .landing-authors { width: 39%; max-width: 39%; }
+  .visual-closeup { left: 49%; width: 65%; }
+  .landing-surface .landing-copy { padding: 30px 24px; }
+  .landing-surface .landing-copy h1 { font-size: 43px !important; }
+}
+@media (max-width: 700px) {
+  .landing-nav { padding: 22px 24px; }
+  .landing-brand > span { font-size: 16px; }
+  .landing-brand > svg { width: 27px; height: 27px; }
+  .landing-main { display: flex !important; flex-direction: column; padding: 28px 24px 30px; gap: 48px !important; min-height: 0; width: 100%; }
+  .landing-stage .landing-main { padding-top: 28px; padding-bottom: 30px; }
+  .landing-copy { width: 100%; max-width: 520px !important; }
+  .landing-copy h1 { font-size: clamp(47px, 11.8vw, 70px) !important; line-height: 1.03; }
+  .landing-description { font-size: 16px; line-height: 1.5; margin-top: 22px; max-width: 43ch; }
+  .landing-actions { margin-top: 25px; gap: 10px; }
+  .landing-primary { min-height: 50px; padding: 0 14px; font-size: 14px; gap: 8px; }
+  .landing-primary svg, .landing-catalog svg { width: 18px; height: 18px; }
+  .landing-catalog { min-height: 50px; font-size: 14px; padding: 0 14px; }
+  .landing-authors { margin-top: 27px !important; gap: 7px; font-size: 11px; }
+  .landing-author-links { gap: 5px; }
+  .landing-author-links a { gap: 5px; padding-right: 8px; }
+  .landing-footer { padding: 24px; }
+  .editor-visual { width: 100%; margin: 0; align-self: center; max-width: 580px; }
+  .visual-edge { width: 120%; margin-left: 14%; margin-top: 9px; }
+  .visual-edge .editor-artwork { transform: rotateY(-11deg) rotateZ(3deg); }
+  .visual-panels { width: 109%; margin-left: -1%; }
+  .visual-panels .visual-caption { margin-top: 25px; margin-left: 6%; }
+  .landing-portal .landing-main { padding-top: 24px; }
+  .visual-portal { width: 91%; max-width: 440px; aspect-ratio: 1.12; margin-top: 5px; }
+  .visual-fold { width: 117%; margin-left: 11%; }
+  .visual-fold .visual-caption { margin-top: 32px; margin-left: 6%; }
+  .visual-stage { width: 113%; margin: 8px 0 0 9%; padding: 32px 0 68px; }
+  .stage-screen { padding: 3px 3px 6px; border-radius: 7px 7px 2px 2px; }
+  .stage-screen .editor-shot { border-radius: 4px 4px 0 0; }
+  .visual-selection { width: 98%; margin-top: 22px; margin-left: 3%; }
+  .visual-selection .visual-caption { margin-top: 40px; margin-left: 0; }
+  .landing-panorama .landing-main { position: relative; }
+  .landing-panorama .landing-copy { padding: 0; }
+  .landing-panorama .landing-description { max-width: 43ch; }
+  .visual-panorama { position: relative; top: auto; right: auto; bottom: auto; width: calc(100% + 48px); height: 360px; margin-left: 0; }
+  .visual-panorama .editor-artwork { clip-path: polygon(8% 0,100% 0,100% 100%,0 100%); }
+  .visual-panorama .editor-shot { width: 143%; transform: translateX(-15%); }
+  .landing-panorama .landing-footer { width: 100%; padding: 0 24px 24px; }
+  .landing-surface .landing-main { padding-top: 10px; gap: 25px !important; }
+  .landing-surface .landing-copy { padding: 30px 24px; border-radius: 12px 12px 42px 12px; }
+  .landing-surface .landing-copy h1 { font-size: clamp(40px, 10vw, 60px) !important; }
+  .landing-surface .landing-description { font-size: 15px; }
+  .landing-surface .landing-catalog { font-size: 13px; }
+  .landing-surface .landing-author-links { gap: 6px; }
+  .landing-surface .landing-author-links a { font-size: 11px; }
+  .visual-surface { width: 112%; margin-left: 9%; }
+  .visual-ribbon { width: 109%; margin-left: 5%; margin-top: 30px; margin-bottom: 24px; }
+  .landing-closeup .landing-main { padding-top: 20px; gap: 36px !important; }
+  .landing-closeup .landing-copy h1 { font-size: clamp(57px, 14vw, 88px) !important; margin-bottom: 22px; }
+  .landing-closeup .landing-description, .landing-closeup .landing-actions, .landing-closeup .landing-authors { width: 100%; max-width: 43ch; }
+  .visual-closeup { position: relative; top: auto; bottom: auto; left: auto; width: calc(100% + 48px); height: 370px; }
+  .visual-closeup .editor-artwork { border-radius: 65px 0 0 0; }
+  .visual-closeup .editor-shot { object-position: 35% center; }
+}
+@media (max-width: 370px) {
+  .landing-nav { padding-left: 18px; padding-right: 18px; }
+  .landing-main { padding-left: 18px; padding-right: 18px; }
+  .landing-actions { gap: 8px; }
+  .landing-primary, .landing-catalog { font-size: 12px; padding: 0 7px; min-height: 46px; gap: 6px; }
+  .landing-primary svg, .landing-catalog svg { width: 16px; height: 16px; }
+  .landing-authors { font-size: 10px; gap: 5px; }
+  .author-credit { gap: 3px; }
+  .landing-author-links { gap: 4px; }
+  .landing-author-links a { gap: 4px; padding: 4px 6px 4px 4px; }
+  .landing-author-links img { width: 20px; height: 20px; }
+  .landing-footer { padding-left: 18px; padding-right: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

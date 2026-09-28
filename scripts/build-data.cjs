@@ -18,6 +18,7 @@ const frames = pixel.slice(
   pixel.indexOf('/* ============ СОСТОЯНИЕ')
 );
 const heroes = Object.values(JSON.parse(read('data/heroes-source.json')))
+  .filter((h) => h.id !== 127)
   .map((h) => ({
     id: h.id,
     name: h.localized_name,
@@ -27,6 +28,10 @@ const heroes = Object.values(JSON.parse(read('data/heroes-source.json')))
     portrait: `assets/portraits/${h.id}.${['jpg', 'png', 'webp'].find((ext) => fs.existsSync(path.join(root, `assets/portraits/${h.id}.${ext}`)))}`
   }))
   .sort((a, b) => a.name.localeCompare(b.name));
+// Special pickable grid entry, intentionally first (including the Agility filter).
+heroes.unshift({ id: 127, name: 'Мишень', aliases: 'Target Dummy', attr: 'agi', roles: [],
+  attack: 'Melee', portrait: 'assets/portraits/127.png', thumbnail: 'assets/portraits/127.png',
+  portraitCrop: [2, 6, 286, 344], thumbnailPosition: '50% 20%' });
 const presets = JSON.parse(read('presets/presets.json')).presets;
 write(
   'scripts/data.mjs',

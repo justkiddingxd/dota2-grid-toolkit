@@ -10,13 +10,16 @@ import { RecentSymbols, CategoryWarning, CanvasSizeFields } from './SymbolContro
 
 import { AsciiLibrary } from './AsciiLibrary.jsx';
 import { CanvasContextMenu, DockLabels, Tooltips } from './EditorActions.jsx';
+import { ArtworkOptimizer } from './ArtworkOptimizer.jsx';
+import { ZoomFields } from './ZoomFields.jsx';
+import EditorCatalog from './catalog/EditorCatalog.jsx';
 
 const attributes = [
   ['any', 'Все герои'],
   ['str', 'Сила'],
   ['agi', 'Ловкость'],
   ['int', 'Интеллект'],
-  ['all', 'Универсальные']
+  ['all', 'Универсалы']
 ];
 const knownHeroes = new Set(D.heroes.map((hero) => hero.id));
 const attributeIcons = { str: 'strength', agi: 'agility', int: 'intelligence', all: 'universal' };
@@ -106,7 +109,7 @@ function ProjectPanel({ editor, state }) {
 
 function GroupControl({ editor, state }) {
   const group = state.group;
-  if (!group || state.preview || state.tool !== 'select') return null;
+  if (!group || state.preview || state.tool !== 'select' || state.reorderingHeroes) return null;
   const first = C.heroLayout(group),
     empty = !first;
   const last = group.heroIds.length - 1;
@@ -120,6 +123,35 @@ function GroupControl({ editor, state }) {
     state.zoom;
   return (
     <>
+      {!empty && !state.resizing && group.heroIds.map((id, index) => {
+        const name = D.heroes.find((hero) => hero.id === id)?.name || `Герой ${id}`;
+        return (
+          <button
+            key={`${group.id}:${index}:${id}`}
+            type="button"
+            className="group-remove-hero"
+            aria-label={`Удалить ${name} из группы ${group.name}`}
+            data-tooltip={`Удалить ${name}`}
+            style={{
+              left: (group.x + first.left + (index % first.cols) * first.stepX + first.cardW) * state.zoom,
+              top: (group.y + first.top + Math.floor(index / first.cols) * first.stepY) * state.zoom
+            }}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              const overlay = event.currentTarget.parentElement;
+              const keyboard = event.detail === 0;
+              editor.removeHero(group.id, index, id);
+              if (keyboard) requestAnimationFrame(() => {
+                const remaining = overlay.querySelectorAll('.group-remove-hero');
+                (remaining[Math.min(index, remaining.length - 1)] || overlay.querySelector('.group-add'))?.focus({ preventScroll: true });
+              });
+            }}
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m5 5 6 6m0-6-6 6" /></svg>
+          </button>
+        );
+      })}
       <button
         key={group.id}
         className={`group-add ${empty ? 'empty' : ''}`}
@@ -204,7 +236,7 @@ function HeroPicker({ editor, group }) {
   const heroes = D.heroes.filter(
     (hero) =>
       (attribute === 'any' || hero.attr === attribute) &&
-      (hero.name.toLowerCase().includes(normalized) || String(hero.id) === normalized)
+      (`${hero.name} ${hero.aliases || ''}`.toLowerCase().includes(normalized) || String(hero.id) === normalized)
   );
   useLayoutEffect(() => {
     const trigger = document.activeElement,
@@ -313,7 +345,8 @@ function HeroPicker({ editor, group }) {
           >
             <div className="picker-portrait">
               <img
-                src={`assets/heroes/${hero.id}.png`}
+                src={hero.thumbnail || `assets/heroes/${hero.id}.png`}
+                style={{ objectPosition: hero.thumbnailPosition }}
                 alt=""
                 loading="lazy"
                 width="256"
@@ -351,9 +384,10 @@ function HeroPicker({ editor, group }) {
             {group.heroIds
               .filter((id) => knownHeroes.has(id))
               .slice(-5)
-              .map((id) => (
-                <img key={id} src={`assets/heroes/${id}.png`} alt="" />
-              ))}
+              .map((id) => {
+                const hero = D.heroes.find((h) => h.id === id);
+                return <img key={id} src={hero?.thumbnail || `assets/heroes/${id}.png`} style={{ objectPosition: hero?.thumbnailPosition }} alt="" />;
+              })}
           </div>
           <span role="status" aria-live="polite">
             В группе: <strong>{group.heroIds.length}</strong>
@@ -370,6 +404,10 @@ function HeroPicker({ editor, group }) {
 export function StudioControls({ editor }) {
   const state = useSyncExternalStore(editor.subscribe, editor.getSnapshot);
   const [panel, setPanel] = useState(null);
+  const [pinned, setPinned] = useState(() => {
+    try { return localStorage.getItem('gridstudio.library-pinned') === '1'; } catch { return false; }
+  });
+  const [optimization, setOptimization] = useState(null);
   const panelTrigger = useRef(null);
   const panelMode = useRef(null);
   const closeLibrary = () => {
@@ -379,7 +417,7 @@ export function StudioControls({ editor }) {
   useEffect(() => {
     const openModeSettings = (event) => {
       if (event.target.closest('#dockAddGroup')) {
-        setPanel(null);
+        if (!pinned) setPanel(null);
         return;
       }
       const trigger = event.target.closest('[data-mode]');
@@ -393,7 +431,13 @@ export function StudioControls({ editor }) {
     };
     document.addEventListener('click', openModeSettings);
     return () => document.removeEventListener('click', openModeSettings);
-  }, [editor]);
+  }, [editor, pinned]);
+  useLayoutEffect(() => {
+    document.body.classList.toggle('library-pinned', pinned);
+    try { localStorage.setItem('gridstudio.library-pinned', pinned ? '1' : '0'); } catch {}
+    if (window.matchMedia('(min-width: 901px)').matches) editor.fitCanvas();
+    return () => document.body.classList.remove('library-pinned');
+  }, [editor, pinned, panel]);
   useEffect(() => {
     if (!state.focused && window.matchMedia('(max-width: 900px)').matches) {
       setPanel(null);
@@ -446,7 +490,7 @@ export function StudioControls({ editor }) {
         <GridFilePanel editor={editor} state={state} />
       </StudioPortal>
       <StudioPortal targetId="canvasTopTools">
-        <CategoryWarning count={state.categories} />
+        <CategoryWarning count={state.categories} onOptimize={() => setOptimization(editor.getDocument())} />
         <RecentSymbols symbols={state.recentSymbols} onPick={editor.useBrushSymbol} />
         {(state.canvas.w !== C.WIDTH || state.canvas.h !== C.HEIGHT) && (
           <p className="canvas-size-note canvas-size-persistent">
@@ -460,6 +504,9 @@ export function StudioControls({ editor }) {
       <StudioPortal targetId="canvasDimensions">
         <CanvasSizeFields size={state.canvas} onApply={editor.resizeCanvas} />
       </StudioPortal>
+      <StudioPortal targetId="zoomFields">
+        <ZoomFields zoom={state.zoom} onChange={editor.setZoom} />
+      </StudioPortal>
       <StudioPortal targetId="asciiLibrary">
         <AsciiLibrary editor={editor} canvas={state.canvas} />
       </StudioPortal>
@@ -472,8 +519,12 @@ export function StudioControls({ editor }) {
         <LayersPanel editor={editor} layers={state.layers} />
       </StudioPortal>
       <StudioPortal targetId="libraryDismiss">
-        <button className="panel-dismiss" onClick={closeLibrary}>
-          Закрыть ×
+        <button className="panel-pin" aria-pressed={pinned} aria-label={pinned ? 'Открепить панель' : 'Закрепить панель'}
+          data-tooltip={pinned ? 'Открепить панель' : 'Закрепить панель'} onClick={() => setPinned(value => !value)}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 3 6 0-1 6 4 4v2H6v-2l4-4-1-6ZM12 15v6"/></svg>
+        </button>
+        <button className="panel-dismiss" onClick={closeLibrary} aria-label="Закрыть панель">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg>
         </button>
       </StudioPortal>
       <StudioPortal targetId="inspectorDismiss">
@@ -496,6 +547,8 @@ export function StudioControls({ editor }) {
           value={state.reference}
           canvasSize={state.canvas}
           onChange={editor.setReference}
+          onEdit={editor.editReference}
+          editing={state.referenceEditing}
         />
       </StudioPortal>
       <StudioPortal targetId="canvasNotices">
@@ -527,21 +580,16 @@ export function StudioControls({ editor }) {
       </StudioPortal>
       <StudioPortal targetId="symbolCounter">
         <>
-          <span className="symbol-count-icon" aria-hidden="true">
-            Aa
-          </span>
-          <span title="Символы рисунка и текста во всех слоях. Пробелы, переносы строк и названия групп не учитываются.">
-            Символов{' '}
-            <strong key={state.symbols} className="count-update">
-              {state.symbols.toLocaleString('ru-RU')}
-            </strong>
-          </span>
           <span className="category-counter">
             Категорий <strong>{state.categories.toLocaleString('ru-RU')}</strong>
           </span>
+          <button className="button ghost compact optimize-trigger" disabled={!state.categories}
+            onClick={() => setOptimization(editor.getDocument())}>Оптимизация</button>
         </>
       </StudioPortal>
+      <EditorCatalog editor={editor}/>
       {state.picker && <HeroPicker key={state.picker.id} editor={editor} group={state.picker} />}
+      {optimization && <ArtworkOptimizer editor={editor} source={optimization} onClose={() => setOptimization(null)} />}
       {state.drawingOpen && (
         <DrawingDialog
           editor={editor}

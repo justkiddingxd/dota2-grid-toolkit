@@ -2,11 +2,12 @@ import { memo } from 'react';
 import { NumberInput } from './NumberInput.jsx';
 import { ImageImportDialog } from './ImageImportDialog.jsx';
 // Stable shell: the editor exclusively owns the canvas and empty imperative hosts.
-export const StudioLayout = memo(function StudioLayout() {
+export const StudioLayout = memo(function StudioLayout({ onBack }) {
   return (
     <>
       <header className="app-header">
-        <a className="brand" href="index.html" aria-label="Grid Studio, главная">
+        <button className="workspace-back" onClick={onBack} aria-label="Вернуться к файлам"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M19 12H5m6-6-6 6 6 6"/></svg><span>Файлы</span></button>
+        <a className="brand" href="./" aria-label="Grid Studio, главная">
           <span className="brand-mark" aria-hidden="true">
             <svg viewBox="0 0 32 32">
               <path d="m5 4 23 24M5 18v10h10M18 4h10v10" />
@@ -17,32 +18,18 @@ export const StudioLayout = memo(function StudioLayout() {
             <small>DOTA 2 TOOLKIT</small>
           </span>
         </a>
-        <div className="header-divider"></div>
-        <div className="project-heading">
-          <button id="renameProject" className="project-name" title="Переименовать сетку">
-            <span id="projectName">Сетка по ролям</span>
-            <span data-icon="chevron" className="small-icon"></span>
-          </button>
-        </div>
-        <span id="saveState" className="save-state">
-          <span className="status-dot"></span>Сохранено на устройстве
-        </span>
+        <button id="saveState" className="save-state" data-state="saved" aria-label="Изменения сохранены. Открыть версии проекта" aria-haspopup="dialog" data-tooltip="Открыть версии проекта">
+          <span className="save-state-dot" aria-hidden="true" />
+          <span id="saveStateLabel">Изменения сохранены</span>
+        </button>
         <div className="header-actions">
-          <button
-            id="newProject"
-            className="button ghost"
-            title="Новая сетка в этом файле"
-            aria-label="Новая сетка"
-          >
-            <span data-icon="plus"></span>
-          </button>
-          <button id="importButton" className="button secondary" aria-label="Загрузить JSON">
+          <button id="importButton" className="button secondary" aria-label="Импортировать">
             <span data-icon="import"></span>
-            <span>Загрузить JSON</span>
+            <span>Импортировать</span>
           </button>
           <button id="exportButton" className="button primary">
             <span data-icon="export"></span>
-            <span>Скачать JSON</span>
+            <span>Экспортировать</span>
           </button>
         </div>
       </header>
@@ -127,6 +114,7 @@ export const StudioLayout = memo(function StudioLayout() {
             <button id="addAscii" className="button secondary full">
               <span data-icon="text"></span>Вставить ASCII-арт или текст
             </button>
+            <div id="referencePanel" />
             <div className="section-heading">
               <span>ИНСТРУМЕНТЫ</span>
               <span className="muted">B</span>
@@ -136,6 +124,7 @@ export const StudioLayout = memo(function StudioLayout() {
               <span>СИМВОЛЫ КИСТИ</span>
               <span id="brushPreview">★</span>
             </div>
+            <input id="symbolSearch" type="search" aria-label="Поиск символов" placeholder="Символ, название или U+…" />
             <select id="symbolCategory" aria-label="Категория символов"></select>
             <label className="check-row category-select-all">
               <input id="brushSelectAll" type="checkbox" />
@@ -202,7 +191,7 @@ export const StudioLayout = memo(function StudioLayout() {
                 />
               </label>
             </div>
-            <p className="hint">Shift — ровная линия по ближайшей оси.</p>
+            <p className="hint">Shift во время рисования — сдвинуть фигуру. У кисти — ровная линия по ближайшей оси.</p>
             <div className="field-pair">
               <label className="check-row">
                 <input id="mirrorH" type="checkbox" />
@@ -228,7 +217,6 @@ export const StudioLayout = memo(function StudioLayout() {
                 Измени символы рамки и протяни её на холсте инструментом «Рамка».
               </p>
             </details>
-            <div id="referencePanel" />
           </section>
           <section
             id="panel-image"
@@ -392,7 +380,7 @@ export const StudioLayout = memo(function StudioLayout() {
             <div className="canvas-caption">
               <span>
                 <i className="canvas-dot"></i>
-                <span id="canvasName">Сетка по ролям</span>
+                <span id="canvasName">Новая сетка</span>
               </span>
               <span id="canvasDimensions" />
             </div>
@@ -459,9 +447,7 @@ export const StudioLayout = memo(function StudioLayout() {
                 <button id="zoomOut" className="icon-button" aria-label="Уменьшить масштаб">
                   <span data-icon="minus"></span>
                 </button>
-                <button id="zoomValue" className="zoom-value" title="Масштаб 100%">
-                  100%
-                </button>
+                <span id="zoomFields" />
                 <button id="zoomIn" className="icon-button" aria-label="Увеличить масштаб">
                   <span data-icon="plus"></span>
                 </button>
@@ -508,7 +494,7 @@ export const StudioLayout = memo(function StudioLayout() {
       <dialog id="modal" className="modal">
         <div id="modalContent"></div>
       </dialog>
-      <input id="fileInput" type="file" accept=".json,application/json" hidden />
+      <input id="fileInput" type="file" accept=".json,application/json" multiple hidden />
       <input
         id="imageInput"
         type="file"

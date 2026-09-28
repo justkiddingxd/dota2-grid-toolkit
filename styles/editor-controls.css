@@ -29,6 +29,24 @@ input[type='number']::-webkit-outer-spin-button {
   min-width: 0;
   width: 100%;
   align-items: center;
+  border-radius: 6px;
+}
+/* Composite fields own one focus ring, including their suffixes and controls. */
+:is(.number-field, .input-unit, .zoom-percent, .search-field, .picker-search, .image-charset-input):focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+:is(.number-field, .input-unit, .zoom-percent, .search-field, .picker-search, .image-charset-input) > input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.number-step-buttons button:focus-visible,
+.image-charset-input > button:focus-visible {
+  outline-offset: -2px;
+}
+.image-charset-input {
+  display: flex;
+  border-radius: 6px;
 }
 .number-field > input[type='number'] {
   width: 100%;
@@ -89,8 +107,11 @@ input[type='number']::-webkit-outer-spin-button {
   padding-right: 24px;
 }
 .input-unit.number-field > input {
+  flex:1 1 auto;
+  width:0;
   padding-right: 0;
 }
+.input-unit.number-field > .number-step-buttons { padding:0; }
 .input-unit.number-field .unit {
   display: none;
 }
@@ -98,8 +119,11 @@ input[type='number']::-webkit-outer-spin-button {
   width: 94px;
   flex: none;
 }
-.image-control-heading > .number-field input {
+.image-dialog-settings .image-control-heading > .number-field > input[type='number'] {
+  flex: 1 1 auto;
   width: 100%;
+  min-width: 0;
+  padding-right: 28px;
 }
 .reference-fields .number-field,
 .drawing-settings .number-field {
@@ -414,9 +438,24 @@ summary::before {
 details[open] > summary::before {
   transform: rotate(45deg);
 }
-.export-guide h3 {
+.export-guide > summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
   font-size: 20px;
-  margin-bottom: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+.export-guide > summary::before {
+  flex: 0 0 6px;
+  margin: 0 2px;
+}
+.export-guide > ol {
+  padding-top: 14px;
+}
+.export-guide .button {
+  padding: 10px 12px;
 }
 .export-guide ol {
   padding-left: 22px;
@@ -477,3 +516,52 @@ details[open] > summary::before {
     height: 24px;
   }
 }
+.grid-import-files {
+  list-style: none;
+  margin: 16px 0 24px;
+  padding: 0;
+  max-height: 24vh;
+  overflow-y: auto;
+}
+.grid-import-files li {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.grid-import-files strong,
+.grid-import-files span {
+  display: block;
+}
+.grid-import-files span {
+  margin-top: 4px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.grid-import-modes {
+  border: 0;
+  padding: 0;
+  margin: 0 0 16px;
+  min-width: 0;
+}
+.grid-import-modes legend {
+  margin-bottom: 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.grid-import-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 0;
+  cursor: pointer;
+}
+.grid-import-option input { margin-top: 3px; flex-shrink: 0; }
+.grid-import-option strong { display: block; font-size: 14px; }
+.grid-import-option small {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  margin-top: 4px;
+}
+.grid-import-option:has(input:disabled) { opacity: .5; cursor: not-allowed; }

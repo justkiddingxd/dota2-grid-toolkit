@@ -30,6 +30,7 @@ function Range({ name }) {
         step={step}
         defaultValue={IMAGE_DEFAULTS[key]}
       />
+      {['thr', 'gridStep', 'blur'].includes(key) && <p className="hint image-control-hint">{hint}</p>}
     </div>
   );
 }
@@ -133,6 +134,12 @@ export function ImageImportDialog() {
           </div>
         </section>
         <section className="image-dialog-settings" aria-label="Настройки изображения">
+          <div className="image-recipes" role="group" aria-label="Быстрая настройка конвертера">
+            <button className="button secondary compact" data-image-recipe="line">Контур</button>
+            <button className="button secondary compact" data-image-recipe="photo">Фото</button>
+            <button className="button secondary compact" data-image-recipe="light">Меньше символов</button>
+          </div>
+          <p className="hint">Начни с 1000 символов. Если много шума — увеличь сглаживание и порог контура. Если пропали детали — уменьши шаг.</p>
           <label className="field-label" htmlFor="imagePreset">
             Стиль конвертации
           </label>
@@ -169,6 +176,7 @@ export function ImageImportDialog() {
               step="100"
               defaultValue={IMAGE_DEFAULTS.maxCats}
             />
+            <p className="hint">Общий предел для контуров и заливки. После 2000 категорий нагрузка на Доту может заметно вырасти.</p>
           </div>
           <div className="image-settings-section">
             <h3>Заливка</h3>

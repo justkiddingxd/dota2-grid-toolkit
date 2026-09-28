@@ -459,6 +459,8 @@ The right inspector opens on demand and contains scrollable properties and layer
 
 Live fields use editor-field, text, line borders, and an accent caret. Hover lightens the border. Inspector fields use 14px text, at least 36px height, and 8px 10px padding. Selects and input units follow the same assignments. Search focus and hero choices use the accent boundary; the hero picker keeps actual selection state.
 
+Composite fields (numeric steppers, units, zoom percentage, search, and charset pickers) place the 2px accent focus ring on their outer wrapper with a 2px offset. Inner inputs suppress their own outline only when the wrapper supplies focus. Embedded buttons retain an inset keyboard indicator. Numeric input bounds fill the wrapper; label spacing belongs outside it so focus and step buttons stay aligned.
+
 Numeric inputs retain their native min/max/step semantics but replace browser spinner chrome with two labelled arrow buttons in a 22px rail. Shift-click steps by ten increments; disabled/read-only controls cannot step. Checkboxes use 16px squares, 4px corners, and explicit checked/indeterminate marks. Ranges use a 4px track and lavender circular thumb. Search fields use a custom clear glyph; details summaries use a rotating chevron while preserving disclosure semantics.
 
 Selects retain native keyboard behavior and a custom field chevron. Browsers supporting appearance: base-select also receive the styled top-layer picker: 8px corners, 5px container padding, 34px minimum options, and a maximum height of min(340px, 60dvh). Selected options use the dedicated translucent selection token and a lavender checkmark. Other browsers keep their native popup fallback.
@@ -503,7 +505,21 @@ The export dialog is capped at 680px and presents the installation guide with th
 
 ### Motion
 
+Selection interiors are direct manipulation surfaces: the move cursor applies across the selected frame, including empty space. Resize/rotation handles and individual hero portrait ordering keep their dedicated gestures. While drawing a geometric shape, Shift temporarily switches to moving the draft, with a move cursor; release resumes sizing at the new position. Brush Shift still draws along an axis. The drawing panel and dialog explain this distinction beside their controls.
+
+All three catalog tabs share the same heading, description, card typography, preview proportions and responsive grid. Owned cards use catalog classes rather than workspace sizing; their status, date and management controls remain available. Liking updates the heart/count in place and never replays the results entrance or repositions the feed. Popular ranking refreshes on the next filter/page visit.
+
+Native details controls unfold over 300–560ms and fold over 220–380ms according to travel distance via `scripts/disclosure-motion.mjs`, including the export guide, nested Steam directory field and frame constructor. User feedback rejected the original fast exponential opening: disclosure height and chevron now share a cubic-bezier(.4,0,.2,1) ease-in-out, with a gentle start and finish. Repeated activation reverses from the current height; closed content retains native keyboard semantics. Only an active disclosure animates layout. Reduced motion uses the native instant toggle and settles any in-flight animation. `styles/motion.css` adds a 240ms opacity reveal for file/catalog results and notices, 140ms control feedback, a 220ms active-tab underline, and a 200ms heart response. Results reveal as one surface with no per-card stagger; the canvas receives no added effects.
+
 The left library transitions opacity over 170ms and translates 14px over 240ms with cubic-bezier(0.16, 1, 0.3, 1). The dock shifts beside the library; the control layer declares 280ms left-position motion and 200ms dock/tool width transitions for label changes. On desktop, the inspector column and gap animate over 240ms; the inspector fades over 180ms and translates 12px over 240ms. Mode-library content and image-view changes use a 220ms opacity/5px vertical entrance with the shared easing. Image-view buttons transition over 160ms. Shared control color and border feedback retains its 170ms transitions. Tooltips enter over 130ms with a 3px rise; context menus enter over 140ms with a 4px rise. Context row feedback uses 130ms, artwork-card feedback uses 160ms, and the larger art preview enters over 200ms with the shared easing. Details chevrons rotate over 160ms. Reduced-motion preference disables these animations and transitions and removes the image dialog's close delay.
+
+### Ten Focus landing candidates
+
+The user explicitly requested a new ten-candidate landing gallery in the established Focus style on 2026-09-27. It is served at landing.html; the earlier five-direction design.html gallery remains a reference. The user subsequently selected candidate 05, «Сцена», for the production home page. The direction contract, candidate list, source provenance, and review status are in docs/landing-variants.md.
+
+The landing inherits the editor's background, panel, raised surface, line, main and muted text, lavender accent, and dark accent-ink through local --lp-* aliases. It also retains SF Pro Display, the original angular logo, the existing description, and the author avatars/Telegram links. These are gallery-specific compositions within Focus, not replacement system tokens. The frontmatter and .impeccable/design.json continue to describe the established editor and preserved reference gallery.
+
+Desktop compositions place copy and actions on the left and the supplied editor screenshot on the right; at 700px and below they stack. Crops, folds, image slices, and framing belong to individual candidates. The supplied screenshot is presentational; the user requested removal of image inspection, so no image button or dialog remains. Comparison controls and clean=1 routes support review; they are separate from the proposed landing navigation. Focus outlines and reduced-motion behavior apply throughout. The production home fixes candidate 05 without comparison controls or keyboard variant switching. The screenshot, background mark and physical platform faces share one CSS 3D world and one camera. The screen leans back by 14° around its lower edge, which meets the horizontal platform at y = 100%. This restores the original 05 direction selected by the user. Its front and sides have actual depth instead of a pre-drawn trapezoid. A fixed rotateZ(1.5deg) rotateX(-10deg) rotateY(-12deg) view and perspective 220cqw apply to the whole world. No pointer tilt, animated camera or floating reflection remains. Do not add filter or opacity to the preserve-3d world, as these flatten its geometry. The full heading line «героев Dota 2.» stays together and scales with the copy column. The editor opens at /editor, and its logo returns home.
 
 ## Do's and Don'ts
 
@@ -517,8 +533,36 @@ The left library transitions opacity over 170ms and translates 14px over 240ms w
 
 ### Don't:
 
-- **Don't** apply the Focus editor choice automatically to the landing.
+- **Don't** replace the selected 05 landing with another candidate unless the user requests it.
 - **Don't** import the gallery's replacement mark or its simplified control visibility into the working editor.
 - **Don't** mix demonstration groups with claims about a populated public catalogue.
 - **Don't** change document data or Dota JSON to achieve a visual treatment.
 - **Don't** replace the supplied Braille artwork with ordinary dots.
+
+### Landing navigation and credits — 2026-09-27
+
+The header contains only the original mark and wordmark. The footer links «Проект на GitHub» to the original repository. Primary «Создать свою сетку» and secondary «Каталог сеток» are adjacent buttons with matching outline icons; the latter retains its truthful unavailable-catalogue status. The author credit and both avatar pills remain one line, including at 320px. The heart is a local Apple raster with recorded provenance, not a platform-dependent glyph. All HTML entry points use the lavender Focus favicon with a new, content-hashed URL. The selected home fits 1280 × 720, and mobile stacks the image below the copy.
+
+27 сентября 2026: подпись авторов заменена на «Авторы» без сердца; аватары и Telegram-ссылки сохранены. Публикация и копия for_github обновлены.
+
+
+### Editor interaction refinements — 2026-09-28
+
+Keep the approved Focus shell. Selection uses visible glyph ink; Alt-click selects an artwork layer, and double-click exposes a multiline live text field. Search, converter quick starts, reference controls and the density comparison dialog use the same quiet hierarchy and custom controls. The density dialog requires comparing the original and result before applying; it never silently changes document geometry. See docs/editor-fixes.md for implementation and validation boundaries.
+### Zoom and optimizer — 2026-09-28
+
+The existing Focus controls now include a continuous scale slider and a precise percentage field. The compact layout keeps the counter above controls and away from the floating dock. Optimization distinguishes exact export-only compaction from explicit detail reduction, showing both original and resulting art plus actual exported counts. See docs/zoom-and-optimization.md for the shared geometry and validation.
+
+
+### Focus chrome and pinned library — 2026-09-28
+
+The export instructions include a Steam link/friend-code field and explicit lookup button. The resulting path shares one quiet field surface with Copy. A collapsed disclosure exposes a different Steam installation directory. Input, loading, result and error stay inline; no additional dialog. At narrow widths the controls stack without overflowing.
+The entire «Как использовать в Dota 2» guide is a native details disclosure, closed whenever the export dialog opens. Its 20px summary has a 44px hit area and the existing rotating disclosure chevron; keyboard activation works without a custom handler. The Steam form remains inside the disclosure.
+
+Target Dummy (ID 127, first in Agility) uses the user-supplied in-game model screenshot in `assets/portraits/127.png`. Shared canvas portrait fitting uses its `portraitCrop` viewport to omit the screenshot frame and bottom nameplate without stretching. Picker thumbnails focus at `50% 20%` to retain the head in a landscape card. The original bitmap stays intact; see assets/ATTRIBUTION.md.
+
+Hero reorder motion belongs to the canvas: the dragged portrait follows the pointer without lag, with an offset shadow and lavender edge. A dashed vacant slot marks the insertion point; neighboring portraits settle into their new slots in roughly 200ms, using the existing card geometry. Outside the group, the lifted portrait dims and the cursor shows an invalid drop. Reduced motion keeps pointer tracking and slot feedback but removes interpolated travel. The whole group moves from its title or gaps; remove/add controls temporarily hide while portraits are in motion. Keyboard ordering is exposed through focusable hero chips in Properties (Alt+Left/Right), with a themed focus ring.
+
+Deletion confirmations use a compact 460px dialog, clamped to the viewport with 16px side gutters. Header and body align at 24px, without a dividing border; actions sit at the lower right. Large preview/submission dialogs keep their own sizing.
+
+Shared editor borders now use neutral translucent surface/control edges instead of purple outlines at rest. Fields have 5px corners, panels and menus 8px, dialogs 10px with a single soft elevation shadow; visible accent keyboard focus remains. Saved status is centered on desktop with a 7px green dot, lavender while saving and amber on warning. The grid switcher is a native top-layer popover with separate selection and rename buttons in every row; no standalone pencil. Left panels share a persistent pin preference: above 900px, pinning reserves their width beside the workspace and animates the margin while the canvas fits the changing viewport. Phones retain overlays. Single-grid file cards do not reserve a pagination column; card preview areas share a common aspect ratio without stretching the rendered grid.

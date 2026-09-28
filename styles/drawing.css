@@ -298,9 +298,9 @@
   color: #cbd4df;
   font-size: 12px;
 }
-.reference-fields input,
-.drawing-settings .field-pair input[type='number'],
-#brushDynamicsFields input {
+.reference-fields .number-field,
+.drawing-settings .field-pair .number-field,
+#brushDynamicsFields .number-field {
   width: 100%;
   margin-top: 5px;
 }

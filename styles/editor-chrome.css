@@ -1,0 +1,112 @@
+/* Focus chrome: quiet surface boundaries, precise controls, explicit active states. */
+:root {
+  --line: #ffffff18;
+  --line-soft: #ffffff0d;
+  --control-edge: #ffffff24;
+}
+.app-header { position:relative; }
+.app-header .save-state { gap:8px; justify-content:center; white-space:nowrap; }
+.app-header button.save-state:active { transform:none; }
+.save-state-dot { width:7px; height:7px; flex:none; border-radius:50%; background:#91c5a3; }
+.save-state[data-state='saving'] .save-state-dot { background:#c4b5ed; animation:save-pending 1.2s ease-in-out infinite; }
+.save-state[data-state='warning'] .save-state-dot { background:#edba86; }
+@keyframes save-pending { 50% { opacity:.35; } }
+@media(min-width:1000px) {
+  /* Keep layout centering separate from shared button press transforms. */
+  .app-header .save-state { position:absolute; left:50%; translate:-50% 0; }
+}
+@media(min-width:701px) and (max-width:999px) {
+  .app-header { gap:14px; }
+  .save-state #saveStateLabel { display:none; }
+}
+
+.app-layout > .workspace { margin-left:0; min-width:0; transition:margin-left 240ms var(--motion-ease); }
+#libraryDismiss { display:flex; gap:4px; top:17px; }
+#libraryDismiss :is(.panel-pin,.panel-dismiss) {
+  display:flex; align-items:center; justify-content:center; width:30px; height:30px;
+  padding:6px; border:0; border-radius:5px; color:var(--muted);
+}
+#libraryDismiss svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+#libraryDismiss button:hover { background:var(--panel-raised); color:var(--text); }
+#libraryDismiss .panel-pin[aria-pressed='true'] { color:var(--accent); background:var(--accent-soft); }
+.panel-pin svg { transition:transform 200ms var(--motion-ease); transform:rotate(35deg); }
+.panel-pin[aria-pressed='true'] svg { transform:rotate(0); }
+@media(min-width:901px) {
+  body.library-pinned.show-library .app-layout > .workspace { margin-left:calc(var(--library-width) + 16px); }
+  body.library-pinned .app-layout > .library-panel { box-shadow:none; }
+  body.library-pinned.show-library .editor-toolbar .tool-dock { transform:translate(0,-45%); }
+}
+@media(max-width:900px) { #libraryDismiss .panel-pin { display:none; } }
+
+.grid-file-trigger {
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  width:190px; min-width:0; min-height:34px; padding:7px 10px;
+  background:var(--field); color:var(--text); border:1px solid var(--control-edge); border-radius:5px; font-size:12px;
+}
+.grid-file-trigger > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.grid-file-trigger svg { width:14px; height:14px; stroke:currentColor; fill:none; }
+.grid-file-trigger[aria-expanded='true'] { border-color:var(--accent); }
+.grid-file-menu {
+  position:fixed; inset:auto; margin:0; padding:6px; border:0; border-radius:8px;
+  color:var(--text); background:#2a2731; box-shadow:0 12px 36px #0007;
+  overflow-y:auto; overscroll-behavior:contain;
+}
+.grid-file-menu:popover-open { animation:grid-menu-enter 140ms var(--motion-ease); }
+@keyframes grid-menu-enter { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+.grid-file-row { display:flex; align-items:center; min-height:40px; border-radius:4px; }
+.grid-file-row:has([aria-current='true']) { background:#c4b5ed12; }
+.grid-file-row:hover { background:#ffffff09; }
+.grid-row-select { display:flex; align-items:center; gap:8px; flex:1; min-width:0; align-self:stretch; padding:8px 6px; color:var(--text); text-align:left; font-size:13px; }
+.grid-row-select > span:last-child { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.grid-row-check { width:16px; height:16px; flex:none; color:var(--accent); }
+.grid-row-check svg { width:16px; height:16px; }
+.grid-row-rename { display:flex; align-items:center; justify-content:center; flex:none; width:32px; height:32px; color:var(--muted); border-radius:4px; }
+.grid-row-rename svg { width:15px; height:15px; }
+.grid-row-rename:hover { color:var(--text); background:#ffffff0c; }
+.grid-file-menu button:focus-visible { outline-offset:-2px; border-radius:4px; }
+@media(max-width:700px) { .grid-file-trigger { width:150px; } }
+
+.editor-shell { border-radius:8px; }
+.modal,.drawing-dialog,.picker-dialog { border:0; border-radius:10px; box-shadow:0 18px 64px #0008; }
+.app-layout > .inspector-panel { border:0; border-radius:8px; }
+.app-layout > .library-panel, body.show-library .app-layout > .library-panel { border-radius:8px; }
+.editor-toolbar .tool-dock { border-radius:8px; }
+.inspector-panel input,.inspector-panel select,.inspector-panel textarea,
+input:not([type='range']):not([type='checkbox']):not([type='radio']),select,textarea {
+  border-color:var(--control-edge); border-radius:5px;
+}
+:is(.number-field,.input-unit,.zoom-percent,.image-charset-input) { border-radius:5px; }
+.input-unit,.zoom-percent { border-color:var(--control-edge); }
+.picker-search { border-radius:6px; border-color:var(--control-edge); }
+.drawing-tools button,.symbol-library button,.draft-symbols button { border-color:transparent; border-radius:4px; }
+.drawing-tools button:hover,.symbol-library button:hover,.draft-symbols button:hover { border-color:var(--control-edge); }
+.drawing-tools button.active,.symbol-library button.active,.draft-symbols button.active { border-color:var(--accent); }
+.canvas-context-menu { border:0; border-radius:8px; box-shadow:0 12px 36px #0007; }
+.modal[data-view='export'] { width:760px; }
+.modal[data-view='export'] .modal-footer { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.modal[data-view='export'] .modal-footer .button { font-size:14px; line-height:1.4; min-height:44px; padding:10px 12px; white-space:normal; }
+.steam-folder { margin-top:12px; }
+.hero-chip[data-hero-order]:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.steam-folder-form label { display:block; margin-bottom:7px; font-size:14px; font-weight:500; }
+.steam-folder-input { display:flex; gap:8px; align-items:stretch; }
+.steam-folder-input input { flex:1; min-width:0; width:auto; }
+.steam-folder :is(input,.button) { font-size:14px; min-height:42px; }
+.steam-folder input { padding:10px 12px; }
+.steam-folder .button { flex-shrink:0; white-space:nowrap; }
+.export-guide .steam-folder-status { font-size:13px; margin:8px 0; }
+.steam-folder-status[data-state='ready'] { color:#91c5a3; }
+.steam-folder-status[data-state='error'] { color:#e1a9b8; }
+.steam-folder-location { margin:12px 0; font-size:13px; color:var(--muted); }
+.steam-folder-location summary { font-size:13px; line-height:1.5; }
+.steam-folder-location label { display:block; margin-top:12px; color:var(--text); }
+.steam-folder-location input { display:block; width:100%; margin-top:6px; }
+.steam-folder-path { display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--field); border-radius:6px; }
+.export-guide .steam-folder-path code { min-width:0; flex:1; margin:0; padding:0; background:none; font-size:14px; line-height:1.5; }
+.steam-folder-path .button { font-size:13px; }
+.export-guide .steam-folder-note { font-size:13px; color:var(--muted); }
+@media(max-width:520px) { .steam-folder-input,.steam-folder-path { flex-direction:column; align-items:stretch; } .steam-folder-path .button { align-self:flex-end; } }
+@media(max-width:700px) { .modal[data-view='export'] .modal-footer { grid-template-columns:1fr; } }
+@media(prefers-reduced-motion:reduce) {
+  .app-layout > .workspace,.panel-pin svg { transition:none; }
+  .grid-file-menu:popover-open,.save-state[data-state='saving'] .save-state-dot { animation:none; }
+}

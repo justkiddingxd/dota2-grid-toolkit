@@ -5,3 +5,8 @@
 - `dissonance.png`: avatar supplied by the user, https://i.ibb.co/2YWsYyv2/image.png. Links to `tg://resolve?domain=dissonance`.
 
 These are original supplied/captured images, not AI-generated assets. Hero portraits used inside the editor concepts are existing assets; see `../ATTRIBUTION.md`. Font provenance is also documented there. No additional rights are claimed by this gallery.
+# Landing editor reference (2026-09-27)
+
+`editor-landing-reference.png` is the user's supplied editor screenshot, downloaded unchanged from https://i.postimg.cc/6pGNCPyL/chrome-h-XKzu-FA8To.png for the ten Focus landing alternatives. Image size: 1280 × 675.
+
+`apple-red-heart.png`: Apple iOS 18.4 Red Heart, explicitly requested for the author credit. Source: https://emojipedia.org/apple/ios-18.4/red-heart, image https://em-content.zobj.net/source/apple/419/red-heart_2764-fe0f.png. Apple artwork; no additional rights are claimed. Stored locally so the selected appearance is consistent across platforms.

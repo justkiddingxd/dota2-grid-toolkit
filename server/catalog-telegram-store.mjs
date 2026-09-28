@@ -1,0 +1,92 @@
+import { randomBytes } from 'node:crypto';
+import { fail } from './catalog-store.mjs';
+
+// Durable notification outbox. Revisions are already committed before discovery;
+// restarting either process cannot lose a submission or publish it by accident.
+export class TelegramQueue {
+  constructor(store) {
+    this.store = store;
+    store.db.exec(`CREATE TABLE IF NOT EXISTS telegram_reviews(
+      id TEXT PRIMARY KEY, kind TEXT NOT NULL, work TEXT NOT NULL, revision INTEGER NOT NULL,
+      report_id INTEGER NOT NULL DEFAULT 0, summary TEXT NOT NULL,
+      state TEXT NOT NULL DEFAULT 'queued', chat TEXT, topic INTEGER, message INTEGER,
+      outcome TEXT NOT NULL DEFAULT '', actor TEXT NOT NULL DEFAULT '', dirty INTEGER NOT NULL DEFAULT 0,
+      attempts INTEGER NOT NULL DEFAULT 0, next_at INTEGER NOT NULL DEFAULT 0,
+      UNIQUE(kind,revision,report_id));
+      CREATE TABLE IF NOT EXISTS telegram_runtime(key TEXT PRIMARY KEY, value TEXT NOT NULL);`);
+  }
+  get(id) { return this.store.get('SELECT * FROM telegram_reviews WHERE id=?', id); }
+  setting(key) { return this.store.get('SELECT value FROM telegram_runtime WHERE key=?', key)?.value; }
+  set(key, value) { this.store.run('INSERT OR REPLACE INTO telegram_runtime VALUES(?,?)', key, String(value)); }
+  lease(owner) {
+    return this.store.tx(() => {
+      if (this.setting('lease-owner') !== owner && Number(this.setting('lease-until')) > this.store.now()) return false;
+      this.set('lease-owner', owner); this.set('lease-until', this.store.now() + 120_000); return true;
+    });
+  }
+  release(owner) { if (this.setting('lease-owner') === owner) this.set('lease-until', 0); }
+  recover() {
+    this.store.run("UPDATE telegram_reviews SET state='queued' WHERE state='rendering'");
+    // Telegram has no idempotency key for sendPhoto: an interrupted upload is
+    // uncertain, not permission to send the same card over and over.
+    this.store.run("UPDATE telegram_reviews SET state='uncertain' WHERE state='sending'");
+  }
+  active(job) {
+    const work = this.store.get("SELECT * FROM works WHERE id=? AND state='active'", job.work);
+    if (!work) return false;
+    if (job.kind === 'submission') return work.draft_revision === job.revision && this.store.revision(job.revision)?.status === 'pending';
+    return work.public_revision === job.revision && !!this.store.get('SELECT id FROM reports WHERE id=? AND resolved=0', job.report_id);
+  }
+  sync() {
+    this.store.tx(() => {
+      const add = (kind, row, report = null) => {
+        const summary = JSON.stringify({ title: row.title, author: row.author, stats: JSON.parse(row.stats), tags: JSON.parse(row.tags), reason: report?.reason || '' });
+        this.store.run('INSERT OR IGNORE INTO telegram_reviews(id,kind,work,revision,report_id,summary) VALUES(?,?,?,?,?,?)',
+          randomBytes(12).toString('hex'), kind, row.work, row.id, report?.id || 0, summary);
+      };
+      for (const row of this.store.all("SELECT r.* FROM revisions r JOIN works w ON w.draft_revision=r.id WHERE w.state='active' AND r.status='pending'")) add('submission', row);
+      for (const report of this.store.all("SELECT p.*,w.public_revision FROM reports p JOIN works w ON w.id=p.work WHERE p.resolved=0 AND w.state='active' AND w.public_revision IS NOT NULL")) add('report', this.store.revision(report.public_revision), report);
+      for (const job of this.store.all("SELECT * FROM telegram_reviews WHERE state NOT IN ('finished')")) {
+        if (!this.active(job)) this.store.run("UPDATE telegram_reviews SET state='finished',outcome='outdated',dirty=1 WHERE id=?", job.id);
+      }
+    });
+  }
+  claim() {
+    return this.store.tx(() => {
+      const job = this.store.get("SELECT * FROM telegram_reviews WHERE state='queued' AND next_at<=? ORDER BY rowid LIMIT 1", this.store.now());
+      if (job) this.store.run("UPDATE telegram_reviews SET state='rendering',attempts=attempts+1 WHERE id=?", job.id);
+      return job;
+    });
+  }
+  retry(job, state, delay = 30_000) { this.store.run('UPDATE telegram_reviews SET state=?,next_at=? WHERE id=? AND state!=\'finished\'', state, this.store.now() + delay, job.id); }
+  sending(job, config) { this.store.run("UPDATE telegram_reviews SET state='sending',chat=?,topic=? WHERE id=?", config.chatId, config.topicId, job.id); }
+  sent(job, message) {
+    this.store.run("UPDATE telegram_reviews SET message=?,state=CASE WHEN state='finished' THEN state ELSE 'sent' END WHERE id=?", message, job.id);
+  }
+  decide(id, action, actor) {
+    // The revision check and decision are one synchronous SQLite transaction.
+    // An awaited Telegram membership check must finish before entering here.
+    return this.store.tx(() => {
+      const job = this.get(id);
+      if (!job || !this.active(job)) fail(409, 'Эта заявка уже проверена, изменена или удалена.');
+      if (job.kind === 'submission') {
+        if (!['approve', 'reject'].includes(action)) fail(400, 'Неизвестное действие.');
+        // moderate has its own transaction; use a savepoint-compatible wrapper.
+        this.store.moderate(job.work, { revision: job.revision, action,
+          reason: action === 'reject' ? 'Отклонено участником команды в Telegram.' : '' }, { transaction: false });
+      } else {
+        if (!['keep', 'hide'].includes(action)) fail(400, 'Неизвестное действие.');
+        if (action === 'hide') {
+          // Hide the reported public work without silently approving/rejecting a newer draft.
+          this.store.run("UPDATE works SET state='blocked',featured=0 WHERE id=?", job.work);
+          this.store.run("UPDATE revisions SET reason='Скрыто после жалобы в Telegram.' WHERE work=?", job.work);
+        }
+        this.store.run('UPDATE reports SET resolved=1 WHERE id=?', job.report_id);
+        this.store.audit(job.work, `report-${action}`);
+      }
+      this.store.run("UPDATE telegram_reviews SET state='finished',outcome=?,actor=?,dirty=1 WHERE id=?", action, JSON.stringify(actor), id);
+      this.store.audit(job.work, `telegram:${action}:revision:${job.revision}:user:${actor.id}`);
+      return this.get(id);
+    });
+  }
+}
