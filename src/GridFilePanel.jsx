@@ -46,6 +46,8 @@ export function GridFilePanel({ editor, state }) {
         </svg>
         <span>Переименовать сетку</span>
       </button>
+      <button className="grid-file-append button ghost compact" onClick={editor.importGrids}
+        title="Загрузить один или несколько файлов и добавить их сетки к текущим">Добавить из файла</button>
     </div>
   );
 }

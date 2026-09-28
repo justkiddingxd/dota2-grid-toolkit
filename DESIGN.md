@@ -505,6 +505,14 @@ The export dialog is capped at 680px and presents the installation guide with th
 
 The left library transitions opacity over 170ms and translates 14px over 240ms with cubic-bezier(0.16, 1, 0.3, 1). The dock shifts beside the library; the control layer declares 280ms left-position motion and 200ms dock/tool width transitions for label changes. On desktop, the inspector column and gap animate over 240ms; the inspector fades over 180ms and translates 12px over 240ms. Mode-library content and image-view changes use a 220ms opacity/5px vertical entrance with the shared easing. Image-view buttons transition over 160ms. Shared control color and border feedback retains its 170ms transitions. Tooltips enter over 130ms with a 3px rise; context menus enter over 140ms with a 4px rise. Context row feedback uses 130ms, artwork-card feedback uses 160ms, and the larger art preview enters over 200ms with the shared easing. Details chevrons rotate over 160ms. Reduced-motion preference disables these animations and transitions and removes the image dialog's close delay.
 
+### Ten Focus landing candidates
+
+The user explicitly requested a new ten-candidate landing gallery in the established Focus style on 2026-09-27. It is served at landing.html; the earlier five-direction design.html gallery remains a reference. The user subsequently selected candidate 05, «Сцена», for the production home page. The direction contract, candidate list, source provenance, and review status are in docs/landing-variants.md.
+
+The landing inherits the editor's background, panel, raised surface, line, main and muted text, lavender accent, and dark accent-ink through local --lp-* aliases. It also retains SF Pro Display, the original angular logo, the existing description, and the author avatars/Telegram links. These are gallery-specific compositions within Focus, not replacement system tokens. The frontmatter and .impeccable/design.json continue to describe the established editor and preserved reference gallery.
+
+Desktop compositions place copy and actions on the left and the supplied editor screenshot on the right; at 700px and below they stack. Crops, folds, image slices, and framing belong to individual candidates. The supplied screenshot is presentational; the user requested removal of image inspection, so no image button or dialog remains. Comparison controls and clean=1 routes support review; they are separate from the proposed landing navigation. Focus outlines and reduced-motion behavior apply throughout. The production home fixes candidate 05 without comparison controls or keyboard variant switching. The screenshot, background mark and physical platform faces share one CSS 3D world and one camera. The screen leans back by 14° around its lower edge, which meets the horizontal platform at y = 100%. This restores the original 05 direction selected by the user. Its front and sides have actual depth instead of a pre-drawn trapezoid. A fixed rotateZ(1.5deg) rotateX(-10deg) rotateY(-12deg) view and perspective 220cqw apply to the whole world. No pointer tilt, animated camera or floating reflection remains. Do not add filter or opacity to the preserve-3d world, as these flatten its geometry. The full heading line «героев Dota 2.» stays together and scales with the copy column. The editor opens at /editor, and its logo returns home.
+
 ## Do's and Don'ts
 
 ### Do:
@@ -517,8 +525,22 @@ The left library transitions opacity over 170ms and translates 14px over 240ms w
 
 ### Don't:
 
-- **Don't** apply the Focus editor choice automatically to the landing.
+- **Don't** replace the selected 05 landing with another candidate unless the user requests it.
 - **Don't** import the gallery's replacement mark or its simplified control visibility into the working editor.
 - **Don't** mix demonstration groups with claims about a populated public catalogue.
 - **Don't** change document data or Dota JSON to achieve a visual treatment.
 - **Don't** replace the supplied Braille artwork with ordinary dots.
+
+### Landing navigation and credits — 2026-09-27
+
+The header contains only the original mark and wordmark. The footer links «Проект на GitHub» to the original repository. Primary «Создать свою сетку» and secondary «Каталог сеток» are adjacent buttons with matching outline icons; the latter retains its truthful unavailable-catalogue status. The author credit and both avatar pills remain one line, including at 320px. The heart is a local Apple raster with recorded provenance, not a platform-dependent glyph. All HTML entry points use the lavender Focus favicon with a new, content-hashed URL. The selected home fits 1280 × 720, and mobile stacks the image below the copy.
+
+27 сентября 2026: подпись авторов заменена на «Авторы» без сердца; аватары и Telegram-ссылки сохранены. Публикация и копия for_github обновлены.
+
+
+### Editor interaction refinements — 2026-09-28
+
+Keep the approved Focus shell. Selection uses visible glyph ink; Alt-click selects an artwork layer, and double-click exposes a multiline live text field. Search, converter quick starts, reference controls and the density comparison dialog use the same quiet hierarchy and custom controls. The density dialog requires comparing the original and result before applying; it never silently changes document geometry. See docs/editor-fixes.md for implementation and validation boundaries.
+### Zoom and optimizer — 2026-09-28
+
+The existing Focus controls now include a continuous scale slider and a precise percentage field. The compact layout keeps the counter above controls and away from the floating dock. Optimization distinguishes exact export-only compaction from explicit detail reduction, showing both original and resulting art plus actual exported counts. See docs/zoom-and-optimization.md for the shared geometry and validation.

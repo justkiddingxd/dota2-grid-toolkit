@@ -94,7 +94,7 @@ test('malformed Dota files are rejected before replacing a document', () => {
   for (const malformed of [null, [], {}, { version: 2, configs: [] }, { version: 3, configs: [] }])
     assert.throws(() => C.importDota(malformed));
   const mutations = [
-    (c) => (c.width = 0),
+    (c) => (c.width = '0'),
     (c) => (c.x_position = NaN),
     (c) => (c.y_position = Infinity),
     (c) => (c.hero_ids = [1, '2']),

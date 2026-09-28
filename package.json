@@ -8,8 +8,11 @@
     "start": "npm run dev",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
-    "check": "node --check scripts/core.mjs && node --check scripts/converter.mjs && node --check scripts/drawing.mjs && node --check scripts/edit-operations.mjs && node --check scripts/reference-image.mjs && node --check scripts/symbol-tools.mjs && node --check scripts/app.mjs",
-    "test": "node --test tests/*.test.cjs"
+    "check": "node --check scripts/core.mjs && node --check scripts/converter.mjs && node --check scripts/drawing.mjs && node --check scripts/edit-operations.mjs && node --check scripts/reference-image.mjs && node --check scripts/symbol-tools.mjs && node --check scripts/zoom.mjs && node --check scripts/category-optimization.mjs && node --check scripts/export-rows.mjs && node --check scripts/app.mjs && node --check scripts/project-storage.mjs && node --check scripts/telegram-release.mjs && node --check scripts/release-format.mjs && node --check scripts/release-check.mjs",
+    "test": "node --test tests/*.test.cjs",
+    "release:check": "node scripts/release-check.mjs",
+    "telegram:preview": "node scripts/telegram-release.mjs",
+    "telegram:test": "node scripts/telegram-release.mjs releases/test.json"
   },
   "license": "MIT",
   "dependencies": {
@@ -18,6 +21,8 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "6.1.1",
+    "fake-indexeddb": "6.2.5",
+    "puregram": "3.10.0",
     "vite": "8.3.1"
   },
   "engines": {

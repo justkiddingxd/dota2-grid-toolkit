@@ -60,3 +60,33 @@ export function measureCategoryText(ctx, text) {
   ctx.restore();
   return { text: rendered, advances };
 }
+
+export function measureCategoryWidth(ctx, text) {
+  ctx.save();
+  ctx.font = `${DOTA.fontWeight} ${DOTA.fontSize}px ${DOTA.fontFamily}`;
+  ctx.letterSpacing = `${DOTA.letterSpacing}px`;
+  const width = ctx.measureText(String(text).toUpperCase()).width;
+  ctx.restore();
+  return { width };
+}
+
+// Visible ink bounds, relative to a category origin. Used for picking and the
+// brush hotspot only; game JSON and its fixed 30px boxes remain unchanged.
+export function measureCategoryInk(ctx, text) {
+  ctx.save();
+  ctx.font = `${DOTA.fontWeight} ${DOTA.fontSize}px ${DOTA.fontFamily}`;
+  ctx.textBaseline = 'alphabetic';
+  ctx.letterSpacing = `${DOTA.letterSpacing}px`;
+  let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
+  String(text).toUpperCase().split('\n').forEach((line, row) => {
+    if (!line.trim()) return;
+    const m = ctx.measureText(line), baseline = DOTA.fontSize * .857 + row * DOTA.header;
+    left = Math.min(left, DOTA.listPadding - m.actualBoundingBoxLeft);
+    right = Math.max(right, DOTA.listPadding + m.actualBoundingBoxRight);
+    top = Math.min(top, baseline - m.actualBoundingBoxAscent);
+    bottom = Math.max(bottom, baseline + m.actualBoundingBoxDescent);
+  });
+  ctx.restore();
+  return Number.isFinite(left) ? { x: left, y: top, w: Math.max(1, right - left), h: Math.max(1, bottom - top) }
+    : { x: DOTA.listPadding, y: 0, w: 8, h: DOTA.fontSize };
+}

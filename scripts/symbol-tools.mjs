@@ -2,6 +2,23 @@ import C from './core.mjs';
 import { DOTA } from './dota-rendering.mjs';
 
 export const MAX_BRUSH_CHARS = 1000;
+const names = [
+  ['.·:;•◉○●☉', 'точка точки круг круги dot circle'],
+  ['★☆✪', 'звезда звезды star'], ['♡', 'сердце heart'],
+  ['←↑→↓⇒⇔', 'стрелка стрелки arrow'], ['■□', 'квадрат square'],
+  ['▲△▼▽', 'треугольник triangle'], ['◆◇', 'ромб diamond'],
+  ['♩♪♫♬♭♯', 'ноты музыка music'], ['♤♧', 'карты card'],
+  ['☉☼', 'солнце sun'], ['#', 'решетка хеш hash'], ['*', 'звездочка asterisk']
+];
+export function searchSymbols(library, query = '', category = Object.keys(library)[0]) {
+  const q = query.trim().toLowerCase();
+  if (!q) return Array.from(library[category] || '');
+  const code = /^(?:u\+|0x)([0-9a-f]{2,6})$/i.exec(q);
+  return [...new Set(Object.entries(library).flatMap(([name, chars]) =>
+    Array.from(chars).filter((ch) => code ? ch.codePointAt(0) === parseInt(code[1], 16) :
+      ch.toLowerCase() === q || name.toLowerCase().includes(q) ||
+      names.some(([glyphs, label]) => glyphs.includes(ch) && label.includes(q)))))];
+}
 export const symbols = (value) => [
   ...new Set(Array.from(value || '').filter((ch) => !/\s/u.test(ch)))
 ];

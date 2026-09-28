@@ -1,8 +1,6 @@
 name: Deploy GitHub Pages
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -31,6 +29,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Build site
+        env:
+          VITE_EDITOR_ENTRY: editor.html
         run: npm run build
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5

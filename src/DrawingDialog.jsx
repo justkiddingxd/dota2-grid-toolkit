@@ -2,6 +2,7 @@ import { NumberInput } from './NumberInput.jsx';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import C from '../scripts/core.mjs';
 import D from '../scripts/data.mjs';
+import { canvasPoint, snapPoint, hitItem, intersectsInk, selectionOnClick, centerBrushPoints } from '../scripts/canvas-input.mjs';
 import {
   DRAWING_TOOLS,
   BRUSH_DEFAULTS,
@@ -10,7 +11,6 @@ import {
   lassoContains
 } from '../scripts/drawing.mjs';
 import {
-  mergeRows,
   eraseSymbols,
   overflow,
   cropSymbols,
@@ -20,16 +20,17 @@ import {
   referenceHit,
   transformReference
 } from '../scripts/edit-operations.mjs';
-import { drawCategoryLabel, measureCategoryText } from '../scripts/dota-rendering.mjs';
+import { drawCategoryLabel, measureCategoryText, measureCategoryInk } from '../scripts/dota-rendering.mjs';
 import { ReferencePanel } from './ReferencePanel.jsx';
 import { CategoryCheckbox, RecentSymbols, CategoryWarning } from './SymbolControls.jsx';
-import { pickSymbol, toggleSymbol, MAX_BRUSH_CHARS } from '../scripts/symbol-tools.mjs';
+import { pickSymbol, toggleSymbol, searchSymbols, MAX_BRUSH_CHARS } from '../scripts/symbol-tools.mjs';
 
 export function DrawingDialog({ editor, reference, canvasSize, recentSymbols }) {
   const dialog = useRef(null),
     canvas = useRef(null),
     viewport = useRef(null),
     stroke = useRef(null),
+    activePointer = useRef(null),
     image = useRef(null),
     history = useRef(new C.History(25));
   const [doc, setDoc] = useState(() => ({
@@ -43,6 +44,9 @@ export function DrawingDialog({ editor, reference, canvasSize, recentSymbols }) 
   const [tool, setTool] = useState('pencil'),
     [brush, setBrush] = useState({ ...BRUSH_DEFAULTS }),
     [category, setCategory] = useState('Геом'),
+    [query, setQuery] = useState(''),
+    [snap, setSnap] = useState(false),
+    [frameStyle, setFrameStyle] = useState('simple'),
     [selected, setSelected] = useState([]),
     [preview, setPreview] = useState([]),
     [path, setPath] = useState([]),
@@ -57,6 +61,8 @@ export function DrawingDialog({ editor, reference, canvasSize, recentSymbols }) 
     ...DRAWING_TOOLS
   ];
   const bounds = overflow(doc);
+  const matchingSymbols = searchSymbols(D.symbols, query, category);
+  const ink = (text) => measureCategoryInk(canvas.current.getContext('2d'), text);
   useLayoutEffect(() => {
     const trigger = document.activeElement,
       node = dialog.current;
@@ -87,6 +93,11 @@ export function DrawingDialog({ editor, reference, canvasSize, recentSymbols }) 
       img.onload = null;
     };
   }, [doc.reference?.src]);
+  useEffect(() => {
+    const cancel = () => { if (stroke.current) finish(null, true); };
+    window.addEventListener('blur', cancel);
+    return () => window.removeEventListener('blur', cancel);
+  }, []);
   useLayoutEffect(() => {
     const node = canvas.current,
       ratio = Math.min(devicePixelRatio || 1, 2);
@@ -144,7 +155,6 @@ export function DrawingDialog({ editor, reference, canvasSize, recentSymbols }) 
   }
   function commit(next, before = latest.current) {
     try {
-      mergeRows(next, (text) => measureCategoryText(canvas.current.getContext('2d'), text));
       C.assertCategoryLimit(next);
       if (next.entities.length > C.MAX_ENTITIES) throw Error('Лимит — 10 000 объектов.');
       if (JSON.stringify(next) === JSON.stringify(before)) return;
@@ -166,30 +176,22 @@ export function DrawingDialog({ editor, reference, canvasSize, recentSymbols }) 
     setError('');
   }
   function point(e) {
-    const b = canvas.current.getBoundingClientRect();
-    return {
-      x: ((e.clientX - b.left) * board.w) / b.width,
-      y: ((e.clientY - b.top) * board.h) / b.height
-    };
+    return canvasPoint(e, canvas.current.getBoundingClientRect(), board);
+  }
+  function placedPoints(s, shift) {
+    return centerBrushPoints(drawingPoints(s.tool, s.path, s.brush, s.seed, shift,
+      D.frames[s.frameStyle], board), ink);
   }
   function previewStroke(shift) {
     const s = stroke.current;
     if (s?.type === 'draw')
-      setPreview(
-        drawingPoints(
-          s.tool,
-          s.path,
-          s.brush,
-          s.seed,
-          shift,
-          Array.from(s.brush.chars.trim()).length <= 1 ? D.frames.simple : null,
-          board
-        )
-      );
+      setPreview(placedPoints(s, shift));
   }
+
   function down(e) {
     if (e.button !== 0 || stroke.current) return;
     e.preventDefault();
+    activePointer.current = e.pointerId;
     canvas.current.focus();
     canvas.current.setPointerCapture(e.pointerId);
     const p = point(e),
@@ -218,20 +220,19 @@ export function DrawingDialog({ editor, reference, canvasSize, recentSymbols }) 
       return;
     }
     if (tool === 'select') {
-      const hit = [...before.entities].reverse().find((item) => C.containsPoint(item, p));
-      const ids = hit
-        ? selectionRef.current.includes(hit.id)
-          ? selectionRef.current
-          : [...(e.shiftKey ? selectionRef.current : []), hit.id]
-        : [];
+      const hit = hitItem(before, p, ink, 3 * board.w / size.w);
+      const ids = hit ? [...selectionOnClick(new Set(selectionRef.current), hit.id, e.shiftKey)] : e.shiftKey ? selectionRef.current : [];
       setSelected(ids);
-      if (hit) stroke.current = { type: 'move', before, start: p, ids };
+      if (hit && ids.includes(hit.id)) stroke.current = { type: 'move', before, start: p, ids };
+      if (!hit) stroke.current = { type: 'marquee', before, start: p, current: p, previous: ids };
       return;
     }
+
     stroke.current = {
       type: tool === 'eraser' ? 'erase' : 'draw',
       tool,
-      path: [p],
+      path: [snapPoint(p, snap)],
+      frameStyle,
       before,
       brush: { ...brush },
       shift: e.shiftKey,
@@ -246,6 +247,7 @@ export function DrawingDialog({ editor, reference, canvasSize, recentSymbols }) 
   }
   function move(e) {
     const s = stroke.current;
+    if (s && e.pointerId !== activePointer.current) return;
     const p = point(e);
     if (!s) {
       if (tool === 'reference') {
@@ -272,19 +274,22 @@ export function DrawingDialog({ editor, reference, canvasSize, recentSymbols }) 
         e.shiftKey
       );
       update(next);
+    } else if (s.type === 'marquee') {
+      s.current = p;
+      setPath([s.start, { x:p.x, y:s.start.y }, p, { x:s.start.x, y:p.y }]);
     } else if (s.type === 'erase') {
       const next = C.clone(latest.current);
       eraseSymbols(next, p);
       update(next);
     } else {
-      s.path.push(p);
+      s.path.push(s.type === 'draw' ? snapPoint(p, snap) : p);
       if (s.type === 'lasso') setPath([...s.path]);
       else previewStroke(e.shiftKey);
     }
   }
   function finish(e, cancel = false) {
     const s = stroke.current;
-    if (!s) return;
+    if (!s || (e && e.pointerId !== activePointer.current)) return;
     if (cancel) {
       if (s.before) update(s.before);
     } else if (s.type === 'lasso') {
@@ -292,22 +297,18 @@ export function DrawingDialog({ editor, reference, canvasSize, recentSymbols }) 
         ...new Set([
           ...s.previous,
           ...latest.current.entities
-            .filter((item) => lassoContains(item, s.path))
+            .filter((item) => lassoContains(item, s.path, ink))
             .map((item) => item.id)
         ])
       ]);
       setTool('select');
+    } else if (s.type === 'marquee') {
+      const b = { x:Math.min(s.start.x,s.current.x), y:Math.min(s.start.y,s.current.y),
+        w:Math.abs(s.current.x-s.start.x), h:Math.abs(s.current.y-s.start.y) };
+      setSelected([...new Set([...s.previous, ...latest.current.entities.filter((item) => intersectsInk(item,b,ink)).map((item) => item.id)])]);
     } else if (s.type === 'draw') {
       const next = C.clone(s.before);
-      const points = drawingPoints(
-        s.tool,
-        s.path,
-        s.brush,
-        s.seed,
-        s.shift ?? e?.shiftKey ?? false,
-        Array.from(s.brush.chars.trim()).length <= 1 ? D.frames.simple : null,
-        board
-      );
+      const points = placedPoints(s, s.shift ?? e?.shiftKey ?? false);
       for (const p of points)
         next.entities.push(
           C.entity(next, {
@@ -322,7 +323,10 @@ export function DrawingDialog({ editor, reference, canvasSize, recentSymbols }) 
           })
         );
       if (commit(next, s.before)) editor.rememberSymbols(points.map((p) => p.ch).join(''));
-    } else commit(C.clone(latest.current), s.before);
+    } else {
+      commit(C.clone(latest.current), s.before);
+      if (s.type === 'move') setSelected(s.ids);
+    }
     stroke.current = null;
     setPreview([]);
     setPath([]);
@@ -491,6 +495,12 @@ export function DrawingDialog({ editor, reference, canvasSize, recentSymbols }) 
           </p>
         </div>
         <aside className="drawing-settings" aria-label="Настройки рисунка">
+          <button className="button secondary full" onClick={() => document.getElementById('draftReferencePanel').scrollIntoView({ block:'nearest', behavior:'smooth' })}>Фон для обводки</button>
+          <label className="check-row"><input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />Привязка к сетке 8 px</label>
+          {tool === 'frame' && <><label className="field-label" htmlFor="draftFrame">Стиль рамки</label>
+            <select id="draftFrame" value={frameStyle} onChange={(e) => setFrameStyle(e.target.value)}>
+              {Object.entries(D.frames).map(([key, frame]) => <option key={key} value={key}>{frame.tl} {frame.h} {frame.tr} · {frame.v}</option>)}
+            </select></>}
           <label className="field-label" htmlFor="draftChars">
             Символы кисти
           </label>
@@ -537,6 +547,7 @@ export function DrawingDialog({ editor, reference, canvasSize, recentSymbols }) 
           <label className="field-label" htmlFor="draftCategory">
             Библиотека символов
           </label>
+          <input type="search" aria-label="Поиск символов" placeholder="Символ, название или U+…" value={query} onChange={(e) => setQuery(e.target.value)} />
           <select id="draftCategory" value={category} onChange={(e) => setCategory(e.target.value)}>
             {Object.keys(D.symbols).map((name) => (
               <option key={name}>{name}</option>
@@ -544,11 +555,12 @@ export function DrawingDialog({ editor, reference, canvasSize, recentSymbols }) 
           </select>
           <CategoryCheckbox
             value={brush.chars}
-            chars={D.symbols[category] || ''}
+            chars={matchingSymbols}
             onChange={(chars) => setBrush({ ...brush, chars: chars.slice(0, MAX_BRUSH_CHARS) })}
           />
           <div className="symbol-library draft-symbols">
-            {Array.from(D.symbols[category] || '').map((ch, i) => (
+            {!matchingSymbols.length && <p className="hint">Символы не найдены. Попробуй название категории или вставь сам символ.</p>}
+            {matchingSymbols.map((ch, i) => (
               <button
                 key={i}
                 title={`Добавить ${ch}`}
@@ -667,7 +679,7 @@ export function DrawingDialog({ editor, reference, canvasSize, recentSymbols }) 
               </div>
             </>
           )}
-          <ReferencePanel
+          <div id="draftReferencePanel"><ReferencePanel
             value={doc.reference}
             canvasSize={board}
             editing={tool === 'reference'}
@@ -683,7 +695,7 @@ export function DrawingDialog({ editor, reference, canvasSize, recentSymbols }) 
               if (reference && reference.src !== doc.reference?.src) setTool('reference');
               if (!reference) setTool('pencil');
             }}
-          />
+          /></div>
         </aside>
       </div>
       <footer className="drawing-footer">

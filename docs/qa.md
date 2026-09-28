@@ -135,3 +135,53 @@ The glyph-tilt behavior described in this historical section was superseded by t
 
 
 - Final checks: all 80 tests, syntax checks and production build passed. The production page changed width to 1500, Undo restored 1193, Redo restored 1500, and the drawing dialog opened with the current dimensions. No console warnings/errors. The test fixture was restored to standard dimensions; the temporary browser tab and 4174 preview server were closed.
+
+## Batch import and export-only rows — 2026-09-27
+
+- All 98 tests, syntax checks and production build pass. New coverage includes 3+3 grids, preserving active edits/native drafts/metadata, duplicate names, undo/redo, arbitrary filenames/extensions/MIME, BOM, batch validation, exact export spacing, unchanged editor entities, legacy row migration, RTL exclusions and Dota typography constants.
+- Browser file upload to the local QA page was blocked by the browser security policy. It was not retried or bypassed. File import scenarios are covered by automated tests; no manual end-to-end import claim is made.
+- The supplied game CSS confirms normal custom-grid category labels use 16px, SemiBold and 2px tracking. The existing renderer already uses these values; 26px is the separate NewPlayerPool override. Dota itself was not launched.
+- Public-site verification on https://gridstudio.me/: loaded the new production bundle with no console warnings/errors. A horizontal drawing stroke produced 35 symbols / 35 objects; dragging one symbol moved only it. Cancelling the draft preserved the original grid (12 symbols / 6 categories). The JSON picker exposes multiple selection with no filename filter. No file upload was attempted on the public site.
+- The server also passed all 98 tests before publication. HTTPS returns the new build; HTTP redirects to HTTPS. The preceding release remains available for rollback.
+
+## Ten Focus landing candidates — 2026-09-27
+
+- New isolated landing.html entry with ten variants, v=1..10 deep links and clean=1. Working editor remains index.html; earlier five-design gallery remains design.html.
+- Public https://gridstudio.me/landing.html tested at desktop1280×720 and mobile390×844 for all ten variants. Full-page captures: .impeccable/review/landing/. All mobile documents fit horizontally; source screenshot preserved unchanged.
+- Fixed the second variant's detached tool rail overlap and kept selected candidate visible in the mobile comparison strip. Verified catalogue explanation, original screenshot dialog, Escape dismissal and arrow-key candidate navigation; console warnings/errors empty.
+- Independent finish review requested one material fix: mobile image inspection at full resolution. Added a direct original-image link and recaptured desktop/mobile dialogs. Verdict: ship for the scored fix, remaining clear, no visible regressions.
+- Automated Impeccable detector could not run because engine0.1.6 was unavailable and its cache path was not writable. Visual/manual review completed; no automated design-detector result is claimed.
+- All98 existing tests, syntax checks and production build passed. No editor document storage is read or written by the gallery.
+
+## Selected home and editor route — 2026-09-27
+
+- Production home uses candidate 05 without comparison controls. Reduced image tilt and unbroken «героев Dota 2.» verified at desktop 1280px, intermediate 900px and mobile 390/320px; no horizontal overflow. Captures: .impeccable/review/home/.
+- Primary CTA opens /editor; reloading /editor keeps the editor; its logo returns home. Existing saved grid and game portraits load. Browser console warnings/errors empty.
+- Both public HTTPS HTML responses return 200 and match local dist SHA256. /editor/?check=route returns 308 to /editor?check=route. Nginx configuration check passed.
+- Production build, syntax checks and all 98 tests passed. No changes to editor document storage or formats.
+
+## Landing scene and controls — 2026-09-27
+
+- Production build and syntax checks passed. This change affects landing presentation and entry-point favicons, not the editor engine.
+- Verified published / at 1280×720, 900px, 390px and 320px. Both action buttons share a row; author text, Apple heart and pills share one line. No horizontal overflow. Final desktop document is exactly 1280×720 after reducing stage spacing.
+- All images loaded. Landing and /editor point to favicon-focus-BvRxixGJ.svg. Catalogue toggles its truthful preparation notice; screenshot click opens no dialog (no dialog remains in DOM). Header contains only home brand; footer links the original GitHub repo.
+- Primary CTA opens the working editor, including saved document and portraits. Console warnings/errors empty. Reduced-motion and fine-pointer guards verified in source; viewport override reset. Captures: .impeccable/review/scene/.
+
+### Устойчивая опора сцены — 27 сентября 2026
+
+Экран и платформа находятся в одном .stage-assembly и делят rotateY(-8deg), с общим параллаксом до ±0.6°. Отдельные наклоны X/Z и отражение удалены: нижний край опирается на узкую планку с контактной тенью, передняя грань основания согласована с перспективой экрана. В «Каталог сеток» добавлена SVG-иконка из четырёх ячеек. На 320px две кнопки остаются в одном ряду. Сборка прошла; опубликованная страница проверена на 1280×720, 390px и 320px, каталог работает, консоль без предупреждений/ошибок. Снимки: .impeccable/review/stage-support/.
+
+### Единая 3D-камера сцены — 27 сентября 2026
+
+Предыдущая платформа была плоской SVG-трапецией, повторно повёрнутой вместе со скриншотом. Заменена CSS-геометрией: stage-camera задаёт perspective 220cqw, stage-world с preserve-3d поворачивает сцену на rotateX(-10deg) rotateY(-7deg). Верх платформы повёрнут на 90° к вертикальному экрану; оба сходятся на y=100%. Передняя/боковые грани расположены на соответствующих координатах глубины. Размеры в cqw масштабируются вместе. Фоновой знак использует ту же камеру. Параллакс и анимация камеры удалены. Не применять filter/opacity к stage-world: они сводят 3D-иерархию в плоскость.
+
+Сборка прошла. Публичная версия проверена на 1280×720 и 390px: сцена загружается, главная помещается в desktop-экран, горизонтального переполнения нет, консоль без предупреждений/ошибок. Иконка каталога сохранена. Снимки: .impeccable/review/stage-camera/.
+
+27 сентября 2026: по просьбе пользователя возвращено исходное направление наклона варианта 05, сверенное с .impeccable/review/landing/desktop-05.png. Экран откинут назад rotateX(14deg) вокруг нижнего края, общая сцена rotateZ(1.5deg) rotateX(-10deg) rotateY(-12deg). Нижняя грань остаётся на платформе; предыдущий вертикальный ракурс отменён. Иконка каталога сохранена. Сборка и публичная desktop/mobile проверка прошли, консоль без ошибок; снимки .impeccable/review/original-tilt/.
+
+### Editor regression patch — 2026-09-28
+
+See [editor-fixes.md](editor-fixes.md) for the compatibility changes and their limits. All 106 Node tests, syntax checks and the production build pass. Public browser checks covered the target-first hero picker, multiline live category names, individual dense-symbol selection, reversible density reduction, symbol search, frame previews and export options. Desktop and narrow-screen smoke checks produced no console errors. Clipboard keyboard simulation was unavailable in the browser harness; file-input and native-game behaviour were not claimed as browser-tested.
+### Continuous zoom and category optimizer — 28 September 2026
+
+111 tests, syntax checks and the production build pass. Public UI checks cover 137.5%, 800%, slider increments, fit, a 54-to-30 category budget and Ctrl+Z restoration. Details and limits: [zoom-and-optimization.md](zoom-and-optimization.md).

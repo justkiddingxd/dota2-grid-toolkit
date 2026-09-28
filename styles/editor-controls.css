@@ -477,3 +477,52 @@ details[open] > summary::before {
     height: 24px;
   }
 }
+.grid-import-files {
+  list-style: none;
+  margin: 16px 0 24px;
+  padding: 0;
+  max-height: 24vh;
+  overflow-y: auto;
+}
+.grid-import-files li {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.grid-import-files strong,
+.grid-import-files span {
+  display: block;
+}
+.grid-import-files span {
+  margin-top: 4px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.grid-import-modes {
+  border: 0;
+  padding: 0;
+  margin: 0 0 16px;
+  min-width: 0;
+}
+.grid-import-modes legend {
+  margin-bottom: 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.grid-import-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 0;
+  cursor: pointer;
+}
+.grid-import-option input { margin-top: 3px; flex-shrink: 0; }
+.grid-import-option strong { display: block; font-size: 14px; }
+.grid-import-option small {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  margin-top: 4px;
+}
+.grid-import-option:has(input:disabled) { opacity: .5; cursor: not-allowed; }

@@ -4,6 +4,15 @@ const C = require('../scripts/core.mjs').default;
 const { DOTA } = require('../scripts/dota-rendering.mjs');
 const near = (a, b, tolerance = 1e-6) => assert.ok(Math.abs(a - b) <= tolerance, `${a} != ${b}`);
 
+test('custom grid labels use the normal Dota category style, not NewPlayerPool', () => {
+  // Verified against HeroCategoryName in the supplied hero_grid_new.vcss_c.
+  assert.equal(DOTA.fontSize, 16);
+  assert.equal(DOTA.fontWeight, 600);
+  assert.equal(DOTA.letterSpacing, 2);
+  assert.equal(DOTA.listPadding, 4);
+  assert.equal(DOTA.labelColor, '#808fa6');
+});
+
 test('height-limited hero groups pack all fitting columns, including the seventh Strength column', () => {
   const layout = C.heroLayout({ w: 250, h: 340, heroIds: Array(36).fill(1) });
   assert.equal(layout.cols, 7);

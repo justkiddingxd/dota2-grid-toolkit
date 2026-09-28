@@ -515,7 +515,7 @@ function Editor({ direction, goLanding, notify }) {
         </div>
         <div className="editor-head-actions">
           <span className="demo-state">Демо-проект</span>
-          <a href="./index.html" target="_blank" rel="noreferrer" className="import-link">
+          <a href={`./${import.meta.env.VITE_EDITOR_ENTRY || 'editor'}`} target="_blank" rel="noreferrer" className="import-link">
             <Icon name="link" size={16} />
             <span>Открыть редактор</span>
           </a>

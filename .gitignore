@@ -28,3 +28,6 @@ test-results/
 *.pem
 *.key
 exports/
+
+/.release-state/
+/release-artifacts/

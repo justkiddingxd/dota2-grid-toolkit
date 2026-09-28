@@ -6,7 +6,7 @@ export const StudioLayout = memo(function StudioLayout() {
   return (
     <>
       <header className="app-header">
-        <a className="brand" href="index.html" aria-label="Grid Studio, главная">
+        <a className="brand" href="./" aria-label="Grid Studio, главная">
           <span className="brand-mark" aria-hidden="true">
             <svg viewBox="0 0 32 32">
               <path d="m5 4 23 24M5 18v10h10M18 4h10v10" />
@@ -24,9 +24,9 @@ export const StudioLayout = memo(function StudioLayout() {
             <span data-icon="chevron" className="small-icon"></span>
           </button>
         </div>
-        <span id="saveState" className="save-state">
+        <button id="saveState" className="save-state" aria-label="Сохранение и копии проекта" data-tooltip="Открыть копии проекта">
           <span className="status-dot"></span>Сохранено на устройстве
-        </span>
+        </button>
         <div className="header-actions">
           <button
             id="newProject"
@@ -127,6 +127,7 @@ export const StudioLayout = memo(function StudioLayout() {
             <button id="addAscii" className="button secondary full">
               <span data-icon="text"></span>Вставить ASCII-арт или текст
             </button>
+            <div id="referencePanel" />
             <div className="section-heading">
               <span>ИНСТРУМЕНТЫ</span>
               <span className="muted">B</span>
@@ -136,6 +137,7 @@ export const StudioLayout = memo(function StudioLayout() {
               <span>СИМВОЛЫ КИСТИ</span>
               <span id="brushPreview">★</span>
             </div>
+            <input id="symbolSearch" type="search" aria-label="Поиск символов" placeholder="Символ, название или U+…" />
             <select id="symbolCategory" aria-label="Категория символов"></select>
             <label className="check-row category-select-all">
               <input id="brushSelectAll" type="checkbox" />
@@ -228,7 +230,6 @@ export const StudioLayout = memo(function StudioLayout() {
                 Измени символы рамки и протяни её на холсте инструментом «Рамка».
               </p>
             </details>
-            <div id="referencePanel" />
           </section>
           <section
             id="panel-image"
@@ -459,9 +460,7 @@ export const StudioLayout = memo(function StudioLayout() {
                 <button id="zoomOut" className="icon-button" aria-label="Уменьшить масштаб">
                   <span data-icon="minus"></span>
                 </button>
-                <button id="zoomValue" className="zoom-value" title="Масштаб 100%">
-                  100%
-                </button>
+                <span id="zoomFields" />
                 <button id="zoomIn" className="icon-button" aria-label="Увеличить масштаб">
                   <span data-icon="plus"></span>
                 </button>
@@ -508,7 +507,7 @@ export const StudioLayout = memo(function StudioLayout() {
       <dialog id="modal" className="modal">
         <div id="modalContent"></div>
       </dialog>
-      <input id="fileInput" type="file" accept=".json,application/json" hidden />
+      <input id="fileInput" type="file" multiple hidden />
       <input
         id="imageInput"
         type="file"

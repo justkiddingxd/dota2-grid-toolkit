@@ -163,7 +163,7 @@ export function drawingPoints(
       Math.max(3, Number(settings.step) || 16)
     );
     // Shape points have consistent contour order; dynamics controls their spacing too.
-    if (!['fill'].includes(tool) && settings.dynamics !== 'constant')
+    if (!['fill', 'frame'].includes(tool) && settings.dynamics !== 'constant')
       points = strokePoints(points, settings, seed);
     let distance = 0;
     points = points.map((point, index) => {
@@ -202,10 +202,10 @@ export function drawingPoints(
   return points
     .flatMap((point) => {
       const positions = [point];
-      if (settings.mirrorH) positions.push({ ...point, x: size.w - 30 - point.x });
-      if (settings.mirrorV) positions.push({ ...point, y: size.h - 30 - point.y });
+      if (settings.mirrorH) positions.push({ ...point, x: size.w - point.x });
+      if (settings.mirrorV) positions.push({ ...point, y: size.h - point.y });
       if (settings.mirrorH && settings.mirrorV)
-        positions.push({ ...point, x: size.w - 30 - point.x, y: size.h - 30 - point.y });
+        positions.push({ ...point, x: size.w - point.x, y: size.h - point.y });
       return positions.filter((p) => {
         if (p.x < 0 || p.y < 0) return false;
         const key = `${Math.round(p.x * 10)},${Math.round(p.y * 10)}`;
@@ -229,11 +229,13 @@ export function pointInPolygon(point, polygon) {
   }
   return inside;
 }
-export function lassoContains(item, polygon) {
+export function lassoContains(item, polygon, measure = null) {
   return (
     polygon.length >= 3 &&
-    C.textGlyphs(item, true).some((glyph) =>
-      pointInPolygon({ x: glyph.x + glyph.w / 2, y: glyph.y + C.visualHeight(glyph) / 2 }, polygon)
-    )
+    C.textGlyphs(item, true).some((glyph) => {
+      const ink = measure && glyph.type !== 'heroes' ? measure(glyph.text) :
+        { x: 0, y: 0, w: glyph.w, h: C.visualHeight(glyph) };
+      return pointInPolygon({ x: glyph.x + ink.x + ink.w / 2, y: glyph.y + ink.y + ink.h / 2 }, polygon);
+    })
   );
 }
