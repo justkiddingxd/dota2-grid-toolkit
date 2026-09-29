@@ -228,7 +228,9 @@ test('followers get one message for an author\'s new work, none for updates or g
   assert.equal(direct[0].chat_id, '502');
   assert.match(direct[0].text, /Игрок &amp; автор<\/b> выложил новую сетку героев <a href="https:\/\/gridstudio\.me\/workshop\?id=[0-9a-f-]{36}">«&lt;Сетка&gt;»<\/a>/);
   assert.equal(direct[0].reply_markup.inline_keyboard[1][0].callback_data, `sub:off:${second.id}`);
-  assert.ok(!JSON.stringify(direct[0]).includes('501'), 'the author account id stays private');
+  // Whole values and standalone numbers only: the work UUID in the link may contain «501».
+  const values = []; JSON.stringify(direct[0], (key, value) => { values.push(value); return value; });
+  assert.ok(!values.includes('501') && !values.includes(501) && !/(^|[^0-9a-f])501([^0-9a-f]|$)/i.test(direct[0].text), 'the author account id stays private');
   // The button in the private chat unsubscribes; foreign chats cannot.
   const button = (user, chat = user) => ({ id: 'q', data: `sub:off:${second.id}`, from: { id: user, is_bot: false },
     message: { message_id: 901, chat: { id: chat, type: 'private' }, from: { id: 42 }, reply_markup: direct[0].reply_markup } });

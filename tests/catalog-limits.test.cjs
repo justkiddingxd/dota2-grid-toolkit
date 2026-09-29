@@ -171,7 +171,11 @@ test('subscribing over HTTP needs Telegram, shows in the work card and refuses g
   assert.equal((await call(`/works/${linked.id}/subscribe`, 'PUT', { subscribed: true }, false)).status, 401);
   assert.deepEqual((await call(`/works/${linked.id}/subscribe`, 'PUT', { subscribed: true })).body, { followable: true, subscribed: true });
   const card = (await call(`/works/${linked.id}`)).body;
-  assert.equal(card.subscribed, true); assert.equal(card.followable, true); assert.equal(JSON.stringify(card).includes('777'), false);
+  assert.equal(card.subscribed, true); assert.equal(card.followable, true);
+  // The author's account never reaches the public card. Match keys and whole values: a
+  // substring check also hit '777' inside timestamps and IDs now and then.
+  const seen = []; JSON.stringify(card, (key, value) => { seen.push(key, value); return value; });
+  assert.ok(!seen.includes('account') && !seen.includes('777') && !seen.includes(777), 'no account in the card');
   assert.equal((await call(`/works/${guest.id}/subscribe`, 'PUT', { subscribed: true })).status, 409);
   assert.equal((await call(`/works/${linked.id}/subscribe`, 'PUT', { subscribed: 'yes' })).status, 400);
   assert.deepEqual((await call(`/works/${linked.id}/subscribe`, 'PUT', { subscribed: false })).body, { followable: true, subscribed: false });
