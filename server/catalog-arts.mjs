@@ -65,7 +65,7 @@ export class CatalogArts {
         need('pending'); set('approved');
         // A player who signed in with Telegram hears from the bot once.
         if (art.account) store.run('INSERT OR IGNORE INTO art_notices(art,account,created) VALUES(?,?,?)', id, art.account, store.now());
-      } else if (action === 'reject') { need('pending'); if (!reason) fail(400, 'Укажи причину отказа.'); set('rejected', reason); }
+      } else if (action === 'reject') { need('pending'); if (!reason) fail(400, 'Укажи причину отказа.'); set('rejected', reason); store.rejectNotice('art', id, art.account); }
       else if (action === 'hide') { need('approved'); set('hidden', reason); }
       else if (action === 'restore') {
         need('hidden', 'rejected');

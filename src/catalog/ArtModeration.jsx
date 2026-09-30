@@ -23,7 +23,7 @@ function Review({ item, queue: { busy, run } }) {
   const changed = ['name', 'category', 'author'].some(key => meta[key] !== item[key]);
   return <section className="catalog-review">
     <div className="art-review-preview"><ArtPreview art={item} canvas={DOTA_GRID}/></div>
-    <p className="catalog-muted">{STATUS[item.status]}{reasonNote(item.reason)}. Отправок артов из этого браузера: {item.related}.{item.linked ? ' Автор вошёл через Telegram — бот сообщит ему об одобрении.' : ''}</p>
+    <p className="catalog-muted">{STATUS[item.status]}{reasonNote(item.reason)}. Отправок артов из этого браузера: {item.related}.{item.linked ? ' Автор вошёл через Telegram — бот сообщит ему о решении.' : ''}</p>
     {item.status !== 'rejected' && item.status !== 'hidden' && <form className="art-review-meta" onSubmit={event => { event.preventDefault(); act('edit', meta); }}>
       <label>Название<input value={meta.name} maxLength={60} onChange={event => setMeta({ ...meta, name: event.target.value })}/></label>
       <label>Категория<select value={meta.category} onChange={event => setMeta({ ...meta, category: event.target.value })}>{ART_CATEGORIES.map(value => <option key={value}>{value}</option>)}</select></label>

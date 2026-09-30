@@ -56,7 +56,7 @@ function WorkReview({ item, queue: { busy, run } }) {
   const pending = item.status === 'pending';
   return <section className="catalog-review">
     <GridPreview grid={item.grid} title={item.title} large/><Stats stats={item.stats}/>
-    <p className="catalog-muted">{item.blocked ? 'Скрыта из мастерской' : STATUS[item.status] || 'В мастерской'}{reasonNote(item.reason)}. Работ из этого браузера: {item.related}.{item.linked ? ' Автор вошёл через Telegram.' : ''}
+    <p className="catalog-muted">{item.blocked ? 'Скрыта из мастерской' : STATUS[item.status] || 'В мастерской'}{reasonNote(item.reason)}. Работ из этого браузера: {item.related}.{item.linked ? ' Автор вошёл через Telegram — бот сообщит ему о решении.' : ''}
       {item.published && !pending && !item.blocked ? <> <a href={`${CATALOG_PATH}?id=${item.id}`} target="_blank" rel="noreferrer">Открыть в мастерской</a></> : null}</p>
     {item.published && pending && <details><summary>Сравнить с опубликованной версией</summary><GridPreview grid={item.published.grid} title="Опубликованная версия" large/></details>}
     {item.blocked ? <><div className="catalog-actions"><button className="catalog-button primary" disabled={busy} onClick={() => review('unblock')}>Разблокировать</button></div>

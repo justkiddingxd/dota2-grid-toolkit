@@ -25,7 +25,7 @@ function Review({ item, queue: { busy, run } }) {
   const changed = meta.title !== item.title || meta.author !== item.author || [...meta.tags].sort().join() !== item.tags.join();
   return <section className="catalog-review">
     <video className="background-review-video" src={`/api/catalog/backgrounds/${item.id}/video.webm`} poster={`/api/catalog/backgrounds/${item.id}/poster.jpg`} controls loop muted autoPlay playsInline/>
-    <p className="catalog-muted">{STATUS[item.status]}{reasonNote(item.reason)}. {(item.bytes / 1_000_000).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} МБ. Фонов из этого браузера: {item.related}.{item.linked ? ' Автор вошёл через Telegram.' : ''}</p>
+    <p className="catalog-muted">{STATUS[item.status]}{reasonNote(item.reason)}. {(item.bytes / 1_000_000).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} МБ. Фонов из этого браузера: {item.related}.{item.linked ? ' Автор вошёл через Telegram — об отказе бот сообщит ему с причиной.' : ''}</p>
     {item.status !== 'rejected' && item.status !== 'hidden' && <form className="art-review-meta" onSubmit={event => { event.preventDefault(); act('edit', meta); }}>
       <label>Название<input value={meta.title} maxLength={60} onChange={event => setMeta({ ...meta, title: event.target.value })}/></label>
       <label>Автор<input value={meta.author} maxLength={40} onChange={event => setMeta({ ...meta, author: event.target.value })}/></label>

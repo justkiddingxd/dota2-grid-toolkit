@@ -13,7 +13,8 @@ const NOUNS = {
   backgrounds: { many: 'фонов', loading: 'Загружаем фоны…', inside: 'В вашем фоне', bad: 'он плохой', yours: 'Ваш фон', other: 'другой', place: 'мастерскую' }
 };
 
-// The author sees the reason in «Мои публикации» word for word.
+// The author sees the reason word for word in «Мои публикации» and, signed in with Telegram, in a message
+// from the bot (catalog-telegram.mjs deliverRejectNotices).
 export function quickReasons(kind) {
   const n = NOUNS[kind];
   return [
